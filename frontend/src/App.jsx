@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -29,9 +30,10 @@ import './App.css';
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public Routes with PublicLayout */}
-        <Route path="/" element={<PublicLayout />}>
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes with PublicLayout */}
+          <Route path="/" element={<PublicLayout />}>
           <Route index element={<Home />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
@@ -57,6 +59,7 @@ function App() {
           <Route path="admissions" element={<Admissions />} />
         </Route>
       </Routes>
+      </AuthProvider>
     </Router>
   );
 }

@@ -1,16 +1,21 @@
 import { AlertCircle, Clock, CheckCircle, ChevronRight, FileText, CheckSquare, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const displayName = user ? (user.full_name || user.email) : 'bạn';
+
   return (
     <div>
       {/* Welcome Banner */}
       <div className="card text-white mb-4 border-0 shadow-sm" style={{ backgroundColor: 'var(--uni-primary)' }}>
         <div className="card-body p-4 p-md-5">
-          <h3 className="fw-bold mb-2">Chào mừng thí sinh Nguyễn Văn A!</h3>
+          <h3 className="fw-bold mb-2">Chào mừng thí sinh {displayName}!</h3>
           <p className="mb-0 text-white-50">Cổng thông tin hướng dẫn và tiếp nhận thủ tục đăng ký xét tuyển trình độ Đại học chính quy năm 2026.</p>
         </div>
       </div>
+
 
       {/* Progress Stepper */}
       <div className="card mb-4 shadow-sm">

@@ -1,6 +1,9 @@
 import { Upload } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Profile() {
+  const { user } = useAuth();
+
   return (
     <div>
       <h2 className="mb-4">Hồ sơ cá nhân</h2>
@@ -10,22 +13,23 @@ export default function Profile() {
         <div className="row g-3">
           <div className="col-md-6">
             <label className="form-label small fw-medium">Họ và tên</label>
-            <input type="text" className="form-control" defaultValue="Nguyễn Văn A" />
+            <input type="text" className="form-control" defaultValue={user?.full_name || ''} />
           </div>
           <div className="col-md-6">
             <label className="form-label small fw-medium">CCCD/CMND</label>
-            <input type="text" className="form-control" defaultValue="001203004567" disabled />
+            <input type="text" className="form-control" defaultValue={user?.cccd || ''} disabled />
           </div>
           <div className="col-md-6">
             <label className="form-label small fw-medium">Email</label>
-            <input type="email" className="form-control" defaultValue="nva@example.com" />
+            <input type="email" className="form-control" defaultValue={user?.email || ''} />
           </div>
           <div className="col-md-6">
             <label className="form-label small fw-medium">Số điện thoại</label>
-            <input type="text" className="form-control" defaultValue="0901234567" />
+            <input type="text" className="form-control" defaultValue={user?.phone || ''} />
           </div>
         </div>
       </div>
+
 
       <div className="card p-4">
         <h5 className="mb-4">Minh chứng (Ảnh học bạ / CCCD)</h5>
