@@ -195,3 +195,12 @@ a:hover {
 .step.completed .step-label, .step.active .step-label {
   color: var(--text-main);
 }
+
+/* Loading spinner animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
