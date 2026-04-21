@@ -1,9 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Phone, Mail, User, LogOut, GraduationCap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function CandidateHeader() {
   const location = useLocation();
   const path = location.pathname;
+  const { user, logout } = useAuth();
+  const displayName = user ? (user.full_name || user.email) : 'Khách';
 
   return (
     <header className="bg-white shadow-sm">
@@ -17,11 +20,11 @@ export default function CandidateHeader() {
           <div className="d-flex align-items-center gap-3">
             <div className="d-flex align-items-center gap-1">
               <User size={14} className="text-secondary" />
-              <span className="fw-medium">Nguyễn Văn A</span>
+              <span className="fw-medium">{displayName}</span>
             </div>
-            <Link to="/" className="text-danger d-flex align-items-center gap-1">
+            <button onClick={logout} className="btn btn-link text-danger d-flex align-items-center gap-1 p-0 text-decoration-none">
               <LogOut size={12} /> Đăng xuất
-            </Link>
+            </button>
           </div>
         </div>
       </div>

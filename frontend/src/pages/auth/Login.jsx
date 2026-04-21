@@ -1,7 +1,42 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogIn, Lock, Mail } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8000/api/accounts/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error('Sai email hoặc mật khẩu!');
+      }
+      
+      // TokenObtainPairView trả về access và refresh
+      // Ở hệ thống thực tế nên fetch /api/me/ để lấy thông tin user. Tạm thời mock user profile.
+      login(data.access, { email: email, role: 'STUDENT', full_name: 'Thí sinh' });
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container py-5">
       <div className="row justify-content-center">
@@ -16,12 +51,17 @@ export default function Login() {
             </div>
             
             <div className="card-body p-4 p-md-5 pt-0">
-              <form>
+              {error && <div className="alert alert-danger small">{error}</div>}
+              
+              <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                   <label className="form-label fw-medium small">Email đăng nhập</label>
                   <div className="input-group">
                     <span className="input-group-text bg-light border-end-0"><Mail size={18} className="text-muted"/></span>
-                    <input type="email" className="form-control border-start-0 ps-0" placeholder="vidu@email.com" />
+                    <input 
+                      type="email" className="form-control border-start-0 ps-0" placeholder="vidu@email.com" 
+                      value={email} onChange={(e) => setEmail(e.target.value)} required 
+                    />
                   </div>
                 </div>
                 
@@ -32,12 +72,15 @@ export default function Login() {
                   </div>
                   <div className="input-group">
                     <span className="input-group-text bg-light border-end-0"><Lock size={18} className="text-muted"/></span>
-                    <input type="password" className="form-control border-start-0 ps-0" placeholder="••••••••" />
+                    <input 
+                      type="password" className="form-control border-start-0 ps-0" placeholder="••••••••" 
+                      value={password} onChange={(e) => setPassword(e.target.value)} required 
+                    />
                   </div>
                 </div>
                 
-                <button type="button" className="btn btn-primary w-100 py-2 fw-bold mb-3 d-flex align-items-center justify-content-center gap-2">
-                  <LogIn size={18} /> Xác thực đăng nhập
+                <button type="submit" disabled={loading} className="btn btn-primary w-100 py-2 fw-bold mb-3 d-flex align-items-center justify-content-center gap-2">
+                  {loading ? 'Đang xử lý...' : <><LogIn size={18} /> Xác thực đăng nhập</>}
                 </button>
                 
                 <div className="text-center small mt-4">
