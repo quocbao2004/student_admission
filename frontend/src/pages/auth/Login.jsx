@@ -20,16 +20,15 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error('Sai email hoặc mật khẩu!');
       }
-      
-      // TokenObtainPairView trả về access và refresh
-      // Ở hệ thống thực tế nên fetch /api/me/ để lấy thông tin user. Tạm thời mock user profile.
-      login(data.access, { email: email, role: 'STUDENT', full_name: 'Thí sinh' });
-      
+
+      // Truyền cả 2 tokens vào AuthContext, sẽ tự gọi /me/ để lấy full user data
+      await login(data.access, data.refresh);
+
     } catch (err) {
       setError(err.message);
     } finally {
