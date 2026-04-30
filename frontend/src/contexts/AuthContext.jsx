@@ -37,8 +37,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('refresh_token', refresh_token);
     setToken(access_token);
     // Lấy thông tin user đầy đủ ngay sau khi có token
-    await fetchMe(access_token);
-    navigate('/candidate/dashboard');
+    const userData = await fetchMe(access_token);
+    
+    // Điều hướng dựa trên role
+    if (userData && userData.role === 'ADMIN') {
+      navigate('/admin');
+    } else {
+      navigate('/candidate/dashboard');
+    }
   };
 
   const logout = () => {

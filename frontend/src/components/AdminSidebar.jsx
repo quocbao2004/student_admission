@@ -14,12 +14,14 @@ export default function AdminSidebar() {
   ];
 
   return (
-    <div className="sidebar d-flex flex-column p-3" style={{ width: '250px' }}>
-      <div className="fs-5 fw-bold mb-4 px-2">
-        Admin<span className="text-muted fw-normal">Portal</span>
+    <div className="w-64 bg-slate-900 h-screen flex flex-col text-slate-300">
+      <div className="p-6">
+        <h1 className="text-xl font-bold text-white tracking-tight">
+          Admin<span className="text-slate-500 font-normal">Portal</span>
+        </h1>
       </div>
       
-      <div className="flex-grow-1">
+      <nav className="flex-1 px-3 space-y-1">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = path.includes(link.to);
@@ -27,22 +29,26 @@ export default function AdminSidebar() {
             <Link 
               key={link.to} 
               to={link.to} 
-              className={`sidebar-link text-decoration-none ${isActive ? 'active fw-medium' : ''}`}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                isActive 
+                  ? 'bg-slate-800 text-white font-medium' 
+                  : 'hover:bg-slate-800 hover:text-slate-100'
+              }`}
             >
-              <Icon size={18} />
-              {link.label}
+              <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
+              <span>{link.label}</span>
             </Link>
           );
         })}
-      </div>
+      </nav>
 
-      <div className="border-top pt-3 mt-3">
-        <div className="px-2 mb-2 small text-muted">
-          <Users size={16} className="me-2"/> Quản trị viên
+      <div className="p-4 border-t border-slate-800">
+        <div className="flex items-center gap-2 px-3 mb-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
+          <Users size={14} /> Quản trị viên
         </div>
-        <Link to="/" className="sidebar-link text-decoration-none text-danger mt-auto">
+        <Link to="/" className="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-red-400 transition-colors">
           <LogOut size={18} />
-          Đăng xuất
+          <span>Đăng xuất</span>
         </Link>
       </div>
     </div>

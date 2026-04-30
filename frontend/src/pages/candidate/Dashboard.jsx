@@ -1,95 +1,162 @@
-import { AlertCircle, Clock, CheckCircle, ChevronRight, FileText, CheckSquare, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  Clock, CheckCircle, ChevronRight, FileText, Award,
+  CheckCircle2, Lock, AlertCircle, Info
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAdmissionFlow, FLOW_STEPS } from '../../contexts/AdmissionFlowContext';
+
+const STEP_DESCRIPTIONS = [
+  'Cập nhật thông tin cá nhân và tải lên minh chứng.',
+  'Đăng ký các ngành học bạn mong muốn xét tuyển.',
+  'Thanh toán lệ phí xét tuyển để hoàn tất hồ sơ.',
+  'Theo dõi trạng thái và nhận kết quả trúng tuyển.',
+];
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { completion, unlockedIndex } = useAdmissionFlow();
   const displayName = user ? (user.full_name || user.email) : 'bạn';
 
+  const currentStepIndex = unlockedIndex;
+
+  const isStepDone = (index) => {
+    if (index === 0) return completion.hasProfile;
+    if (index === 1) return completion.hasAspirations;
+    if (index === 2) return completion.hasPaid;
+    return false;
+  };
+
+  const nextStep = FLOW_STEPS[currentStepIndex];
+  const allDone = completion.hasProfile && completion.hasAspirations && completion.hasPaid;
+
   return (
-    <div>
-      {/* Welcome Banner */}
-      <div className="card text-white mb-4 border-0 shadow-sm" style={{ backgroundColor: 'var(--uni-primary)' }}>
-        <div className="card-body p-4 p-md-5">
-          <h3 className="fw-bold mb-2">Chào mừng thí sinh {displayName}!</h3>
-          <p className="mb-0 text-white-50">Cổng thông tin hướng dẫn và tiếp nhận thủ tục đăng ký xét tuyển trình độ Đại học chính quy năm 2026.</p>
+    <div className="max-w-6xl mx-auto px-6 py-10 font-sans text-slate-900">
+      {/* Header Section */}
+      <div className="mb-10">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+          <Info size={14} />
+          Cổng tuyển sinh 2026
         </div>
+        <h2 className="text-3xl font-semibold tracking-tight">Chào mừng, {displayName}!</h2>
+        <p className="text-slate-500 text-sm mt-2 max-w-2xl">
+          Hệ thống xét tuyển đại học trực tuyến. Vui lòng hoàn tất các bước bên dưới để tham gia xét tuyển đợt 1.
+        </p>
       </div>
 
+      {/* Stepper Card */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm mb-8">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-800">Tiến độ hồ sơ</h3>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Bước {currentStepIndex + 1}/4</span>
+        </div>
+        <div className="p-8">
+          <div className="relative flex justify-between mb-12 px-10">
+            {/* Background Line */}
+            <div className="absolute top-4 left-10 right-10 h-[1px] bg-slate-100 -z-0"></div>
+            {/* Active Progress Line */}
+            <div 
+              className="absolute top-4 left-10 h-[1px] bg-slate-900 transition-all duration-500 -z-0" 
+              style={{ width: `calc(${(currentStepIndex / 3) * 100}% - 80px)` }}
+            ></div>
 
-      {/* Progress Stepper */}
-      <div className="card mb-4 shadow-sm">
-        <div className="card-header bg-white py-3">
-          <h5 className="mb-0 fs-6 text-uppercase fw-bold"><CheckSquare size={18} className="me-2 mb-1"/>Tiến độ Hồ sơ Xét tuyển</h5>
-        </div>
-        <div className="card-body p-4 p-md-5 pt-5 pb-4">
-          <div className="stepper mx-auto" style={{ maxWidth: '800px' }}>
-            <div className="step completed">
-              <div className="step-circle"><CheckCircle size={18} /></div>
-              <div className="step-label mt-2">Đăng ký Tài khoản</div>
-            </div>
-            <div className="step active">
-              <div className="step-circle">2</div>
-              <div className="step-label mt-2">Cập nhật Hồ sơ</div>
-            </div>
-            <div className="step">
-              <div className="step-circle">3</div>
-              <div className="step-label mt-2">Đăng ký NV</div>
-            </div>
-            <div className="step">
-              <div className="step-circle">4</div>
-              <div className="step-label mt-2">Thanh toán</div>
-            </div>
-            <div className="step">
-              <div className="step-circle">5</div>
-              <div className="step-label mt-2">Xem Kết quả</div>
-            </div>
-          </div>
-          <div className="text-center mt-4">
-            <p className="text-muted mb-3">Bạn chưa hoàn thành việc cập nhật hình ảnh học bạ phổ thông.</p>
-            <Link to="/candidate/profile" className="btn btn-primary px-4">Đến trang Hồ sơ ngay <ChevronRight size={16} /></Link>
-          </div>
-        </div>
-      </div>
+            {FLOW_STEPS.map((step, index) => {
+              const done = isStepDone(index);
+              const active = index === currentStepIndex;
+              const locked = index > unlockedIndex;
 
-      <div className="row g-4 mb-4">
-        <div className="col-md-7 border-end">
-          <h5 className="fw-bold mb-3 d-flex align-items-center gap-2">
-            <FileText size={20} className="text-muted"/> Tin tức & Thông báo Tuyển sinh
-          </h5>
-          
-          <div className="mb-3 pb-3 border-bottom">
-            <h6 className="fw-bold"><a href="#" className="text-decoration-none">Hướng dẫn tải lên minh chứng Học bạ hợp lệ</a></h6>
-            <div className="small text-muted mb-2">Đăng ngày: 15/04/2026 | Chuyên mục: Bằng cấp / Minh chứng</div>
-            <p className="small text-muted">Trường Đại học ABC lưu ý thí sinh khi chụp ảnh học bạ cần chụp đủ các trang trang chức điểm số cuối kỳ của 3 năm lớp 10, 11 và 12...</p>
+              return (
+                <div key={step.key} className="flex flex-col items-center relative z-10 w-32">
+                  <div className={`
+                    w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
+                    ${done ? 'bg-slate-900 text-white shadow-md' : 
+                      active ? 'bg-white border-2 border-slate-900 text-slate-900 ring-4 ring-slate-50 shadow-sm' : 
+                      'bg-white border border-slate-200 text-slate-300'}
+                  `}>
+                    {done ? <CheckCircle2 size={16} /> : locked ? <Lock size={12} /> : index + 1}
+                  </div>
+                  <span className={`mt-3 text-[11px] font-bold uppercase tracking-wide text-center px-1 ${active ? 'text-slate-900' : done ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          
-          <div className="mb-3 pb-3 border-bottom">
-            <h6 className="fw-bold"><a href="#" className="text-decoration-none">Gia hạn thời gian nộp lệ phí đợt 1</a></h6>
-            <div className="small text-muted mb-2">Đăng ngày: 10/04/2026 | Chuyên mục: Lệ phí</div>
-            <p className="small text-muted">Do hệ thống cổng thanh toán quốc gia tạm bảo trì, trường sẽ gia hạn thêm 2 ngày cho mục nộp lệ phí đợt 1.</p>
-          </div>
-          
-          <Link to="#" className="btn btn-outline-primary btn-sm mt-2">Xem tất cả tin tức</Link>
-        </div>
-        
-        <div className="col-md-5 ps-md-4">
-          <h5 className="fw-bold mb-3 d-flex align-items-center gap-2">
-            <Award size={20} className="text-muted"/> Hỗ trợ trực tuyến
-          </h5>
-          <div className="card bg-light border-0">
-            <div className="card-body">
-              <h6 className="fw-bold">Bộ phận giải đáp thắc mắc</h6>
-              <p className="small text-muted mb-3">Nếu bạn gặp khó khăn trong quá trình nhập điểm hoặc không thể cập nhật Căn cước công dân. Liên hệ ngay:</p>
-              <div className="mb-2 d-flex gap-2 align-items-center bg-white p-2 border rounded">
-                <Clock size={16} className="text-danger" /> 
-                <div>
-                  <div className="fw-medium small">Thời gian làm việc</div>
-                  <div className="text-muted small">08:00 - 17:00 (Thứ 2 - Thứ 6)</div>
+
+          {/* Action Call */}
+          <div className={`p-5 rounded-lg border flex flex-col md:flex-row items-center justify-between gap-4 transition-colors ${allDone ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex items-center gap-4 text-center md:text-left">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${allDone ? 'bg-white/10' : 'bg-white border border-slate-200 text-slate-400 shadow-sm'}`}>
+                {allDone ? <CheckCircle size={20} className="text-white" /> : <AlertCircle size={20} />}
+              </div>
+              <div>
+                <div className={`text-sm font-bold ${allDone ? 'text-white' : 'text-slate-900'}`}>
+                  {allDone ? "Hồ sơ của bạn đã sẵn sàng" : 
+                   (currentStepIndex === 2 && !completion.isVerified) ? "Hồ sơ đang chờ xác minh" : 
+                   `Bước tiếp theo: ${nextStep?.label}`}
+                </div>
+                <div className={`text-xs mt-1 ${allDone ? 'text-white/60' : 'text-slate-500'}`}>
+                  {allDone ? "Hãy quay lại tra cứu kết quả khi Nhà trường công bố." : 
+                   (currentStepIndex === 2 && !completion.isVerified) ? "Bạn đã đăng ký nguyện vọng. Vui lòng đợi 1-3 ngày làm việc để cán bộ tuyển sinh duyệt minh chứng trước khi thanh toán." : 
+                   STEP_DESCRIPTIONS[currentStepIndex]}
                 </div>
               </div>
-              <button className="btn btn-primary w-100 mt-2">Chat với Tư vấn viên</button>
             </div>
+            {!allDone && !(currentStepIndex === 2 && !completion.isVerified) && (
+              <Link to={nextStep?.path} className="px-6 py-2.5 bg-slate-900 text-white rounded-md text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm shrink-0">
+                Bắt đầu ngay <ChevronRight size={14} className="inline ml-1" />
+              </Link>
+            )}
+            {allDone && (
+              <Link to="/candidate/aspirations" className="px-6 py-2.5 bg-white text-slate-900 rounded-md text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm shrink-0">
+                Xem kết quả <ChevronRight size={14} className="inline ml-1" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* News Section */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <FileText size={16} /> Tin tức thông báo
+            </h3>
+            <button className="text-[11px] font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase">Tất cả</button>
+          </div>
+          
+          <div className="space-y-4">
+            {[1, 2].map(i => (
+              <div key={i} className="group p-5 bg-white border border-slate-200 rounded-lg hover:border-slate-900 transition-all cursor-pointer">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Thông báo · 15/04/2026</div>
+                <h4 className="text-base font-semibold text-slate-900 group-hover:underline mb-2">
+                  {i === 1 ? 'Hướng dẫn tải lên minh chứng Học bạ hợp lệ' : 'Gia hạn thời gian nộp lệ phí đợt 1'}
+                </h4>
+                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                  Trường Đại học XYZ lưu ý thí sinh khi chụp ảnh học bạ cần chụp đủ các trang ghi điểm cuối kỳ của 3 năm lớp 10, 11 và 12 để đảm bảo quyền lợi...
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Support Section */}
+        <div className="space-y-6">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Award size={16} /> Hỗ trợ
+          </h3>
+          <div className="bg-slate-900 text-white rounded-lg p-6 space-y-4 shadow-lg shadow-slate-200">
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Mọi thắc mắc về hồ sơ, thủ tục nhập điểm hoặc nộp lệ phí, vui lòng liên hệ hotline:
+            </p>
+            <div className="text-2xl font-bold tracking-tighter py-2 border-y border-white/10">1900 1234</div>
+            <div className="flex items-center gap-2 text-xs text-slate-400 italic">
+              <Clock size={14} /> 08:00 – 17:00 (Thứ 2 – 6)
+            </div>
+            <button className="w-full py-2.5 bg-white text-slate-900 rounded-md text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all">
+              Nhắn tin hỗ trợ
+            </button>
           </div>
         </div>
       </div>

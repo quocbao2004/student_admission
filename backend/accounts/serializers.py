@@ -10,9 +10,9 @@ class RegisterCandidateDTO(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     full_name = serializers.CharField(max_length=255)
     cccd = serializers.CharField(
-        max_length=12,
-        min_length=12,
-        validators=[RegexValidator(regex=r'^0\d{11}$', message='CCCD không hợp lệ. Phải là số và đủ 12 ký tự.')]
+        max_length=11,
+        min_length=11,
+        validators=[RegexValidator(regex=r'^\d{11}$', message='CCCD không hợp lệ. Phải là số và đủ 11 ký tự.')]
     )
     phone = serializers.CharField(
         max_length=10,

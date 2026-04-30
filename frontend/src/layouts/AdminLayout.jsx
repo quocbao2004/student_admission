@@ -3,10 +3,12 @@ import AdminSidebar from '../components/AdminSidebar';
 
 export default function AdminLayout() {
   return (
-    <div className="min-vh-100 d-flex">
+    <div className="flex min-h-screen bg-slate-50">
       <AdminSidebar />
-      <main className="flex-grow-1 p-4 bg-body overflow-auto" style={{ height: '100vh' }}>
-        <Outlet />
+      <main className="flex-1 h-screen overflow-auto">
+        <div className="p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

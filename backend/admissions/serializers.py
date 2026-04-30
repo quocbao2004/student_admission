@@ -1,8 +1,13 @@
 from rest_framework import serializers
 from accounts.models import Profile
+from .models import Major, AdmissionMethod, SubjectCombination, Application, MajorBenchmark
 
-ALLOWED_DOCUMENT_TYPES = ['ACADEMIC_RECORD', 'IELTS', 'CCCD', 'ACHIEVEMENT']
-ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf']
+ALLOWED_DOCUMENT_TYPES = [
+    'ACADEMIC_RECORD', 'IELTS', 'CCCD', 'ACHIEVEMENT',
+    'PRIORITY_DOC', 'OTHER', 'GRADUATION_CERT',
+    'HSA_CERT', 'SAT_CERT',  # Chứng chỉ ĐGNL và SAT
+]
+ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx']
 MAX_UPLOAD_SIZE_MB = 5
 
 class ProfileUpdateDTO(serializers.Serializer):
@@ -37,9 +42,107 @@ class DocumentUploadDTO(serializers.Serializer):
             raise serializers.ValidationError(f"Chỉ chấp nhận định dạng: {', '.join(ALLOWED_EXTENSIONS)}.")
         return value
 
+class DocumentBulkUploadDTO(serializers.Serializer):
+    doc_type = serializers.ChoiceField(choices=ALLOWED_DOCUMENT_TYPES)
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        max_length=10,
+        required=True
+    )
+
+    def validate_files(self, value):
+        for file in value:
+            # Kiểm tra dung lượng
+            if file.size > MAX_UPLOAD_SIZE_MB * 1024 * 1024:
+                raise serializers.ValidationError(f"File {file.name} vượt quá {MAX_UPLOAD_SIZE_MB}MB.")
+            # Kiểm tra định dạng
+            ext = file.name.split('.')[-1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                raise serializers.ValidationError(f"File {file.name} có định dạng không hợp lệ.")
+        return value
+
 class DocumentResponseDTO(serializers.Serializer):
     id = serializers.UUIDField()
     type = serializers.CharField()
     file_url = serializers.CharField()
     status = serializers.CharField()
     uploaded_at = serializers.DateTimeField()
+
+class ScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import Score
+        model = Score
+        fields = ['id', 'subject', 'score']
+
+# Catalog Serializers
+class MajorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Major
+        fields = '__all__'
+
+class AdmissionMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdmissionMethod
+        fields = '__all__'
+
+class SubjectCombinationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubjectCombination
+        fields = '__all__'
+
+# Application (Aspirations) Serializers
+class ApplicationCreateDTO(serializers.Serializer):
+    major_id = serializers.UUIDField()
+    method_id = serializers.UUIDField()
+    combination_id = serializers.UUIDField(required=False, allow_null=True)
+    priority_order = serializers.IntegerField(required=False)
+
+class ApplicationResponseDTO(serializers.ModelSerializer):
+    major_name = serializers.CharField(source='major.name', read_only=True)
+    major_code = serializers.CharField(source='major.code', read_only=True)
+    method_name = serializers.CharField(source='method.name', read_only=True)
+    combination_code = serializers.CharField(source='combination.code', read_only=True, allow_null=True)
+    admission_result = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Application
+        fields = ['id', 'major', 'major_name', 'major_code', 'method', 'method_name', 
+                  'combination', 'combination_code', 'priority_order', 'status', 
+                  'admission_result', 'created_at']
+
+    def get_admission_result(self, obj):
+        result = obj.result.first() # Using related_name='result'
+        if not result:
+            return None
+        return {
+            "total_score": result.total_score,
+            "is_passed": result.is_passed,
+            "ranked_position": result.ranked_position,
+            "published": obj.profile.status == 'RESULT_PUBLISHED'
+        }
+
+# Benchmark & Stats Serializers
+class MajorBenchmarkSerializer(serializers.ModelSerializer):
+    method = serializers.ReadOnlyField(source='method.id')
+    method_name = serializers.CharField(source='method.name', read_only=True)
+    class Meta:
+        model = MajorBenchmark
+        fields = ['year', 'method', 'method_name', 'score']
+
+class MajorStatsResponseDTO(serializers.ModelSerializer):
+    application_count = serializers.IntegerField(read_only=True)
+    match_rate = serializers.FloatField(read_only=True)
+    benchmarks = MajorBenchmarkSerializer(source='benchmarks_list', many=True, read_only=True)
+
+    class Meta:
+        model = Major
+        fields = ['id', 'code', 'name', 'quota', 'description', 
+                  'application_count', 'match_rate', 'benchmarks']
+
+class AdminMajorBenchmarkCRUDSerializer(serializers.ModelSerializer):
+    major_name = serializers.CharField(source='major.name', read_only=True)
+    method_name = serializers.CharField(source='method.name', read_only=True)
+
+    class Meta:
+        model = MajorBenchmark
+        fields = '__all__'

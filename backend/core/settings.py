@@ -145,6 +145,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Payment gateways
+MOMO_ENDPOINT = env('MOMO_ENDPOINT', default='https://test-payment.momo.vn/v2/gateway/api/create')
+MOMO_PARTNER_CODE = env('MOMO_PARTNER_CODE', default='')
+MOMO_ACCESS_KEY = env('MOMO_ACCESS_KEY', default='')
+MOMO_SECRET_KEY = env('MOMO_SECRET_KEY', default='')
+MOMO_REDIRECT_URL = env('MOMO_REDIRECT_URL', default='http://localhost:5173/candidate/payment')
+MOMO_IPN_URL = env('MOMO_IPN_URL', default='http://localhost:8000/api/admissions/payments/callback/')
+
+VNPAY_ENDPOINT = env('VNPAY_ENDPOINT', default='https://sandbox.vnpayment.vn/paymentv2/vpcpay.html')
+VNPAY_TMN_CODE = env('VNPAY_TMN_CODE', default='')
+VNPAY_HASH_SECRET = env('VNPAY_HASH_SECRET', default='')
+VNPAY_RETURN_URL = env('VNPAY_RETURN_URL', default='http://localhost:5173/candidate/payment')
+
 # Media files (User uploaded content)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

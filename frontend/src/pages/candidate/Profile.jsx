@@ -1,21 +1,72 @@
-import { useState, useEffect, useRef } from 'react';
-import { Upload, Save, Trash2, FileText, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Upload, Save, FileText, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAdmissionFlow } from '../../contexts/AdmissionFlowContext';
+import { API_BASE, DOCUMENT_TYPE_LABELS } from '../../config';
+import ScoreVerificationFlow from '../../components/ScoreVerificationFlow';
 
-const API_BASE = 'http://localhost:8000/api';
+// -------------------------------------------------------------------
+// Hằng số giới hạn tuổi theo quy định tuyển sinh đại học
+// -------------------------------------------------------------------
+const MIN_AGE = 17; // Tối thiểu: đã tốt nghiệp THPT
+const MAX_AGE = 60; // Tối đa: giới hạn hợp lý cho hệ chính quy
 
-const DOCUMENT_TYPE_LABELS = {
-  ACADEMIC_RECORD: 'Học bạ THPT',
-  IELTS: 'Chứng chỉ Ngoại ngữ (IELTS/TOEIC)',
-  CCCD: 'CCCD / Căn cước công dân',
-  ACHIEVEMENT: 'Giấy khen / Thành tích',
-};
+/**
+ * Tính tuổi đầy đủ tính đến ngày hôm nay.
+ * @param {string} dobStr - chuỗi YYYY-MM-DD
+ * @returns {number}
+ */
+function calcAge(dobStr) {
+  const today = new Date();
+  const dob = new Date(dobStr);
+  let age = today.getFullYear() - dob.getFullYear();
+  const hasHadBirthdayThisYear =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
+
+/**
+ * Validate ngày sinh theo quy định tuổi tuyển sinh.
+ * @param {string} dobStr - chuỗi YYYY-MM-DD
+ * @returns {{ valid: boolean | null, message: string }}
+ */
+function validateDob(dobStr) {
+  if (!dobStr) return { valid: null, message: '' };
+
+  const dob = new Date(dobStr);
+  if (isNaN(dob.getTime())) {
+    return { valid: false, message: 'Ngày sinh không hợp lệ.' };
+  }
+  if (dob >= new Date()) {
+    return { valid: false, message: 'Ngày sinh không thể là ngày trong tương lai.' };
+  }
+
+  const age = calcAge(dobStr);
+  if (age < MIN_AGE) {
+    return {
+      valid: false,
+      message: `Thí sinh phải đủ ${MIN_AGE} tuổi (sinh trước ${new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE + 1)).toLocaleDateString('vi-VN')}).`,
+    };
+  }
+  if (age > MAX_AGE) {
+    return { valid: false, message: `Tuổi thí sinh không được vượt quá ${MAX_AGE} tuổi.` };
+  }
+
+  return { valid: true, message: `Hợp lệ — ${age} tuổi.` };
+}
 
 const StatusBadge = ({ status }) => {
   const map = {
+    DRAFT: { label: 'Nháp', cls: 'bg-secondary text-white' },
+    PENDING_VERIFY: { label: 'Chờ duyệt', cls: 'bg-warning text-dark' },
     PENDING: { label: 'Chờ duyệt', cls: 'bg-warning text-dark' },
     VERIFIED: { label: 'Đã xác minh', cls: 'bg-success text-white' },
     REJECTED: { label: 'Từ chối', cls: 'bg-danger text-white' },
+    PAID: { label: 'Đã thanh toán', cls: 'bg-info text-dark' },
+    RANKED: { label: 'Đã xếp hạng', cls: 'bg-primary text-white' },
+    RESULT_PUBLISHED: { label: 'Đã công bố kết quả', cls: 'bg-dark text-white' },
   };
   const { label, cls } = map[status] || { label: status, cls: 'bg-secondary text-white' };
   return <span className={`badge ${cls}`}>{label}</span>;
@@ -40,21 +91,36 @@ function useAuthFetch() {
   return authFetch;
 }
 
+/** Kiểm tra profile đã đủ thông tin bắt buộc chưa. */
+function isProfileComplete(data) {
+  return Boolean(data?.dob && data?.gender && data?.address);
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const authFetch = useAuthFetch();
+  const { updateCompletion } = useAdmissionFlow();
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState(null);
   const [formData, setFormData] = useState({ dob: '', gender: '', address: '', priority_area: '', priority_object: '' });
+  const [dobValidation, setDobValidation] = useState({ valid: null, message: '' });
   const [documents, setDocuments] = useState([]);
-  const [selectedDocType, setSelectedDocType] = useState('ACADEMIC_RECORD');
-
+  const [selectedDocType, setSelectedDocType] = useState('CCCD');
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [pendingFiles, setPendingFiles] = useState([]);
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [profileAlert, setProfileAlert] = useState(null); // { type: 'success'|'error', message }
   const [uploadAlert, setUploadAlert] = useState(null);
+
+  const isVerified = profile?.status === 'VERIFIED';
+
+  // Required docs for CCCD + graduation cert (NOT academic record — handled by ScoreVerificationFlow)
+  const OTHER_REQUIRED_DOCS = [
+    { type: 'CCCD',            label: 'Căn cước công dân (Mặt trước & sau)' },
+    { type: 'GRADUATION_CERT', label: 'Bằng tốt nghiệp THPT (Hoặc giấy chứng nhận tạm thời)' },
+  ];
 
   // Load profile data
   useEffect(() => {
@@ -64,12 +130,19 @@ export default function Profile() {
         const data = await res.json();
         if (res.ok) {
           setProfile(data);
+          const loadedDob = data.dob || '';
           setFormData({
-            dob: data.dob || '',
+            dob: loadedDob,
             gender: data.gender || '',
             address: data.address || '',
             priority_area: data.priority_area || '',
             priority_object: data.priority_object || '',
+          });
+          if (loadedDob) setDobValidation(validateDob(loadedDob));
+          // Báo cáo trạng thái hoàn thành cho flow
+          updateCompletion({ 
+            hasProfile: isProfileComplete(data),
+            isVerified: data.status === 'VERIFIED'
           });
         }
       } catch (err) {
@@ -97,8 +170,25 @@ export default function Profile() {
     fetchDocs();
   }, []);
 
+
+
+  const handleDobChange = useCallback((e) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, dob: value }));
+    setDobValidation(validateDob(value));
+  }, []);
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+
+    // Guard: không cho lưu nếu ngày sinh chưa hợp lệ
+    const dobCheck = validateDob(formData.dob);
+    if (!dobCheck.valid) {
+      setDobValidation(dobCheck);
+      setProfileAlert({ type: 'error', message: 'Vui lòng kiểm tra lại ngày sinh trước khi lưu.' });
+      return;
+    }
+
     setSavingProfile(true);
     setProfileAlert(null);
     try {
@@ -110,6 +200,10 @@ export default function Profile() {
       const data = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(data));
       setProfile(data);
+      updateCompletion({ 
+        hasProfile: isProfileComplete(data),
+        isVerified: data.status === 'VERIFIED'
+      });
       setProfileAlert({ type: 'success', message: 'Cập nhật hồ sơ thành công!' });
     } catch (err) {
       setProfileAlert({ type: 'error', message: 'Cập nhật thất bại. Vui lòng thử lại.' });
@@ -118,14 +212,61 @@ export default function Profile() {
     }
   };
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleSaveScores = async () => {
+    if (scores.some(s => !s.subject || s.score === '')) {
+      setScoreAlert({ type: 'error', message: 'Vui lòng điền đầy đủ Tên môn và Điểm số.' });
+      return;
+    }
+    setSavingScores(true);
+    setScoreAlert(null);
+    try {
+      const res = await authFetch(`${API_BASE}/admissions/profile/scores/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scores.map(s => ({ subject: s.subject, score: parseFloat(s.score) })))
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data));
+      setScores(data.map(s => ({ subject: s.subject, score: s.score })));
+      setScoreAlert({ type: 'success', message: 'Lưu bảng điểm thành công!' });
+      setTimeout(() => setScoreAlert(null), 3000);
+    } catch (err) {
+      setScoreAlert({ type: 'error', message: 'Lưu điểm thất bại. Vui lòng kiểm tra lại định dạng điểm số.' });
+    } finally {
+      setSavingScores(false);
+    }
+  };
+
+  const addScoreRow = () => setScores([...scores, { subject: '', score: '' }]);
+  const updateScoreRow = (idx, field, val) => {
+    const newScores = [...scores];
+    newScores[idx][field] = val;
+    setScores(newScores);
+  };
+  const removeScoreRow = (idx) => setScores(scores.filter((_, i) => i !== idx));
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    setPendingFiles(prev => [...prev, ...files]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removePendingFile = (index) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleQuickUpload = async (docType, files) => {
+    if (!files || files.length === 0) return;
     setUploadingDoc(true);
     setUploadAlert(null);
+    
     const fd = new FormData();
-    fd.append('doc_type', selectedDocType);
-    fd.append('file', file);
+    fd.append('doc_type', docType);
+    Array.from(files).forEach(file => {
+      fd.append('files', file);
+    });
+
     try {
       const res = await authFetch(`${API_BASE}/admissions/documents/`, {
         method: 'POST',
@@ -133,16 +274,46 @@ export default function Profile() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const msg = data.file?.[0] || data.doc_type?.[0] || data.error || 'Tải lên thất bại.';
+        const msg = data.files?.[0] || data.doc_type?.[0] || data.error || 'Tải lên thất bại.';
         throw new Error(msg);
       }
-      setDocuments((prev) => [data, ...prev]);
-      setUploadAlert({ type: 'success', message: `Tải lên "${DOCUMENT_TYPE_LABELS[data.type]}" thành công!` });
+      setDocuments((prev) => [...data, ...prev]);
+      setUploadAlert({ type: 'success', message: `Đã tải lên minh chứng cho "${DOCUMENT_TYPE_LABELS[docType]}" thành công!` });
     } catch (err) {
       setUploadAlert({ type: 'error', message: err.message });
     } finally {
       setUploadingDoc(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (pendingFiles.length === 0) return;
+    setUploadingDoc(true);
+    setUploadAlert(null);
+    
+    const fd = new FormData();
+    fd.append('doc_type', selectedDocType);
+    pendingFiles.forEach(file => {
+      fd.append('files', file);
+    });
+
+    try {
+      const res = await authFetch(`${API_BASE}/admissions/documents/`, {
+        method: 'POST',
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data.files?.[0] || data.doc_type?.[0] || data.error || 'Tải lên thất bại.';
+        throw new Error(msg);
+      }
+      setDocuments((prev) => [...data, ...prev]);
+      setUploadAlert({ type: 'success', message: `Đã tải lên ${data.length} minh chứng thành công!` });
+      setPendingFiles([]);
+    } catch (err) {
+      setUploadAlert({ type: 'error', message: err.message });
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -217,19 +388,64 @@ export default function Profile() {
           <form onSubmit={handleSaveProfile}>
             <div className="row g-3">
               <div className="col-md-4">
-                <label className="form-label small fw-medium">Ngày sinh</label>
+                <label htmlFor="profile-dob" className="form-label small fw-medium">
+                  Ngày sinh <span className="text-danger">*</span>
+                </label>
                 <input
-                  type="date" className="form-control"
+                  id="profile-dob"
+                  type="date"
+                  className="form-control"
                   value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  onChange={handleDobChange}
+                  required
+                  max={(() => {
+                    const d = new Date();
+                    d.setFullYear(d.getFullYear() - MIN_AGE);
+                    return d.toISOString().split('T')[0];
+                  })()}
+                  min={(() => {
+                    const d = new Date();
+                    d.setFullYear(d.getFullYear() - MAX_AGE);
+                    return d.toISOString().split('T')[0];
+                  })()}
+                  style={{
+                    borderColor:
+                      dobValidation.valid === true ? '#16a34a'
+                      : dobValidation.valid === false ? '#dc2626'
+                      : undefined,
+                  }}
+                  aria-describedby="dob-feedback"
                 />
+                {/* Feedback ngay dưới input */}
+                {dobValidation.valid !== null && (
+                  <div
+                    id="dob-feedback"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      marginTop: 5,
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      color: dobValidation.valid ? '#166534' : '#991b1b',
+                    }}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {dobValidation.valid
+                      ? <CheckCircle size={13} />
+                      : <AlertTriangle size={13} />}
+                    {dobValidation.message}
+                  </div>
+                )}
               </div>
               <div className="col-md-4">
-                <label className="form-label small fw-medium">Giới tính</label>
+                <label className="form-label small fw-medium">Giới tính <span className="text-danger">*</span></label>
                 <select
                   className="form-select"
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  required
                 >
                   <option value="">-- Chọn giới tính --</option>
                   <option value="MALE">Nam</option>
@@ -265,11 +481,12 @@ export default function Profile() {
                 </select>
               </div>
               <div className="col-md-6">
-                <label className="form-label small fw-medium">Địa chỉ thường trú</label>
+                <label className="form-label small fw-medium">Địa chỉ thường trú <span className="text-danger">*</span></label>
                 <input
                   type="text" className="form-control" placeholder="Số nhà, Đường, Phường/Xã, Quận/Huyện, Tỉnh/TP"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
                 />
               </div>
             </div>
@@ -288,92 +505,124 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* ========== PHẦN TẢI MINH CHỨNG ========== */}
-      <div className="card shadow-sm">
+      {/* ========== PHẦN ĐIỂM SỐ & XÁC MINH (4-step flow) ========== */}
+      <div className="card shadow-sm mb-4">
         <div className="card-header bg-white py-3">
-          <h6 className="mb-0 fw-semibold">Minh chứng & Giấy tờ</h6>
+          <h6 className="mb-0 fw-semibold">Điểm học bạ &amp; Xác minh minh chứng</h6>
+        </div>
+        <div className="card-body p-4">
+          <ScoreVerificationFlow
+            profileStatus={profile?.status}
+            isVerified={isVerified}
+          />
+        </div>
+      </div>
+
+      {/* ========== GIẤY TỜ BẮT BUỘC KHÁC (CCCD, Bằng TN) ========== */}
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-white py-3">
+          <h6 className="mb-0 fw-semibold">Giấy tờ hồ sơ bắt buộc khác</h6>
         </div>
         <div className="card-body p-4">
           {uploadAlert && (
-            <div className={`alert alert-${uploadAlert.type === 'success' ? 'success' : 'danger'} d-flex align-items-center gap-2 py-2`}>
+            <div className={`alert alert-${uploadAlert.type === 'success' ? 'success' : 'danger'} d-flex align-items-center gap-2 py-2 mb-4`}>
               {uploadAlert.type === 'success' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
               {uploadAlert.message}
             </div>
           )}
-
-          {/* Upload Zone */}
-          <div className="border rounded p-4 mb-4 bg-light">
-            <div className="row g-3 align-items-end">
-              <div className="col-md-5">
-                <label className="form-label small fw-medium">Loại giấy tờ</label>
-                <select className="form-select" value={selectedDocType} onChange={(e) => setSelectedDocType(e.target.value)}>
-                  {Object.entries(DOCUMENT_TYPE_LABELS).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-md-5">
-                <label className="form-label small fw-medium">Chọn file (JPG, PNG, PDF, tối đa 5MB)</label>
-                <input
-                  ref={fileInputRef}
-                  type="file" className="form-control"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={handleUpload}
-                  disabled={uploadingDoc}
-                />
-              </div>
-              <div className="col-md-2">
-                {uploadingDoc && (
-                  <div className="d-flex align-items-center gap-2 text-primary">
-                    <Loader size={18} className="spin-icon" />
-                    <span className="small">Đang tải...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Danh sách tài liệu đã tải */}
-          {documents.length === 0 ? (
-            <div className="text-center text-muted py-4">
-              <FileText size={36} className="mb-2 opacity-50" />
-              <p className="mb-0 small">Chưa có minh chứng nào được tải lên.</p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th className="small">Loại giấy tờ</th>
-                    <th className="small">File</th>
-                    <th className="small">Trạng thái</th>
-                    <th className="small">Ngày tải lên</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.map((doc) => (
-                    <tr key={doc.id}>
-                      <td className="small fw-medium">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</td>
+          <div className="table-responsive border rounded bg-light p-2">
+            <table className="table table-borderless align-middle mb-0">
+              <thead>
+                <tr className="border-bottom">
+                  <th className="small fw-bold py-2">Loại giấy tờ</th>
+                  <th className="small fw-bold py-2" style={{ width: '250px' }}>Tình trạng</th>
+                  <th className="small fw-bold py-2 text-end" style={{ width: '180px' }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {OTHER_REQUIRED_DOCS.map((req) => {
+                  const uploaded = documents.filter((d) => d.type === req.type);
+                  const uniqueStatuses = [...new Set(uploaded.map((d) => d.status))];
+                  return (
+                    <tr key={req.type} className="border-bottom">
+                      <td className="py-3"><div className="fw-medium">{req.label} <span className="text-danger">*</span></div></td>
                       <td>
-                        <a href={`http://localhost:8000${doc.file_url}`} target="_blank" rel="noreferrer" className="small text-decoration-none">
-                          <FileText size={14} className="me-1" />
-                          Xem tài liệu
-                        </a>
+                        {uploaded.length > 0 ? (
+                          <div className="d-flex flex-wrap gap-1">
+                            {uniqueStatuses.map((s) => <StatusBadge key={`${req.type}-${s}`} status={s} />)}
+                            <span className="small text-muted ms-1">({uploaded.length} tệp)</span>
+                          </div>
+                        ) : (
+                          <span className="text-danger small">Chưa có tệp nào</span>
+                        )}
                       </td>
-                      <td><StatusBadge status={doc.status} /></td>
-                      <td className="small text-muted">{new Date(doc.uploaded_at).toLocaleDateString('vi-VN')}</td>
                       <td className="text-end">
-                        <button onClick={() => handleDelete(doc.id)} className="btn btn-link text-danger p-0" title="Xoá">
-                          <Trash2 size={16} />
-                        </button>
+                        <input
+                          type="file" id={`file-${req.type}`} className="d-none"
+                          accept=".jpg,.jpeg,.png,.pdf" multiple
+                          onChange={(e) => handleQuickUpload(req.type, e.target.files)}
+                          disabled={uploadingDoc}
+                        />
+                        <label
+                          htmlFor={`file-${req.type}`}
+                          className={`btn btn-sm ${uploaded.length > 0 ? 'btn-outline-primary' : 'btn-primary'} d-inline-flex align-items-center gap-2`}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <Upload size={14} /> {uploaded.length > 0 ? 'Tải tệp mới' : 'Chọn file'}
+                        </label>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* All uploaded docs list */}
+          <div className="mt-4">
+            <h6 className="small fw-bold text-uppercase text-muted mb-3">Danh sách tệp đã tải lên</h6>
+            {documents.filter((d) => d.type !== 'ACADEMIC_RECORD').length === 0 ? (
+              <div className="text-center text-muted py-4 border rounded bg-light">
+                <FileText size={30} className="mb-2 opacity-50" />
+                <p className="mb-0 small">Chưa có minh chứng nào được lưu.</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="small">Loại giấy tờ</th>
+                      <th className="small">File</th>
+                      <th className="small">Trạng thái</th>
+                      <th className="small">Ngày tải lên</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents
+                      .filter((d) => d.type !== 'ACADEMIC_RECORD')
+                      .map((doc) => (
+                        <tr key={doc.id}>
+                          <td className="small fw-medium">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</td>
+                          <td>
+                            <a href={`http://localhost:8000${doc.file_url}`} target="_blank" rel="noreferrer" className="small text-decoration-none">
+                              <FileText size={14} className="me-1" />Xem tài liệu
+                            </a>
+                          </td>
+                          <td><StatusBadge status={doc.status} /></td>
+                          <td className="small text-muted">{new Date(doc.uploaded_at).toLocaleDateString('vi-VN')}</td>
+                          <td className="text-end">
+                            <button onClick={() => handleDelete(doc.id)} className="btn btn-link text-danger p-0" title="Xoá">
+                              <span style={{ fontSize: 14 }}>✕</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
