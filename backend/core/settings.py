@@ -46,11 +46,25 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party apps
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     # Local apps
     'accounts',
     'admissions',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -130,3 +144,29 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Payment gateways
+MOMO_ENDPOINT = env('MOMO_ENDPOINT', default='https://test-payment.momo.vn/v2/gateway/api/create')
+MOMO_PARTNER_CODE = env('MOMO_PARTNER_CODE', default='')
+MOMO_ACCESS_KEY = env('MOMO_ACCESS_KEY', default='')
+MOMO_SECRET_KEY = env('MOMO_SECRET_KEY', default='')
+MOMO_REDIRECT_URL = env('MOMO_REDIRECT_URL', default='http://localhost:5173/candidate/payment')
+MOMO_IPN_URL = env('MOMO_IPN_URL', default='http://localhost:8000/api/admissions/payments/callback/')
+
+VNPAY_ENDPOINT = env('VNPAY_ENDPOINT', default='https://sandbox.vnpayment.vn/paymentv2/vpcpay.html')
+VNPAY_TMN_CODE = env('VNPAY_TMN_CODE', default='')
+VNPAY_HASH_SECRET = env('VNPAY_HASH_SECRET', default='')
+VNPAY_RETURN_URL = env('VNPAY_RETURN_URL', default='http://localhost:5173/candidate/payment')
+
+# Media files (User uploaded content)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Email Configuration
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Ban Tuyển sinh <noreply@admission.edu.vn>')

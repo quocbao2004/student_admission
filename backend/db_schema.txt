@@ -1,0 +1,103 @@
+﻿--- COLUMNS IN 'users' ---
+- cccd
+- created_at
+- email
+- full_name
+- id
+- last_login
+- password
+- phone
+- role
+- status
+---------------------------
+--- COLUMNS IN 'profiles' ---
+- address
+- created_at
+- dob
+- gender
+- id
+- priority_area
+- priority_object
+- rejection_reason
+- status
+- user_id
+---------------------------
+--- COLUMNS IN 'documents' ---
+- file_url
+- id
+- profile_id
+- status
+- type
+- uploaded_at
+---------------------------
+--- COLUMNS IN 'majors' ---
+- code
+- description
+- id
+- name
+- quota
+---------------------------
+--- COLUMNS IN 'subject_combinations' ---
+- code
+- id
+- subject1
+- subject2
+- subject3
+---------------------------
+--- COLUMNS IN 'admission_methods' ---
+- description
+- id
+- name
+---------------------------
+--- COLUMNS IN 'score_formulas' ---
+- formula
+- id
+- method_id
+---------------------------
+--- COLUMNS IN 'scores' ---
+- id
+- profile_id
+- score
+- subject
+---------------------------
+--- COLUMNS IN 'applications' ---
+- combination_id
+- created_at
+- id
+- major_id
+- method_id
+- priority_order
+- profile_id
+- status
+---------------------------
+--- COLUMNS IN 'admission_results' ---
+- application_id
+- created_at
+- id
+- is_passed
+- ranked_position
+- total_score
+---------------------------
+--- COLUMNS IN 'payments' ---
+- amount
+- created_at
+- extra_data
+- id
+- method
+- order_id
+- pay_url
+- request_id
+- response_data
+- status
+- transaction_code
+- updated_at
+- user_id
+---------------------------
+--- COLUMNS IN 'major_benchmarks' ---
+- created_at
+- id
+- major_id
+- method_id
+- score
+- year
+---------------------------
