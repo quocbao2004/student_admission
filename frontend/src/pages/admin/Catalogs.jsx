@@ -14,6 +14,7 @@ export default function Catalogs() {
   const [benchmarks, setBenchmarks] = useState([]);
   const [methods, setMethods] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [benchmarkYear, setBenchmarkYear] = useState(null);
   
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,12 +46,18 @@ export default function Catalogs() {
       
       setMajors(await resMajors.json());
       setCombinations(await resCombs.json());
-      setBenchmarks(await resBenchmarks.json());
+      const benchmarksData = await resBenchmarks.json();
+      setBenchmarks(benchmarksData);
+      
+      // Set default benchmarkYear to most recent year
+      if (benchmarksData.length > 0 && !benchmarkYear) {
+        const years = [...new Set(benchmarksData.map(b => b.year))].sort((a, b) => b - a);
+        setBenchmarkYear(years[0]);
+      }
       
       const catalogsData = await resCatalogs.json();
       setMethods(catalogsData.methods || []);
     } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -106,7 +113,10 @@ export default function Catalogs() {
 
   const filteredMajors = majors.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.code.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredCombs = combinations.filter(c => c.code.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredBenchmarks = benchmarks.filter(b => b.major_name?.toLowerCase().includes(searchTerm.toLowerCase()) || b.year.toString().includes(searchTerm));
+  const filteredBenchmarks = benchmarks
+    .filter(b => benchmarkYear ? b.year === benchmarkYear : true)
+    .filter(b => b.major_name?.toLowerCase().includes(searchTerm.toLowerCase()) || b.year.toString().includes(searchTerm));
+  const benchmarkYears = [...new Set(benchmarks.map(b => b.year))].sort((a, b) => b - a);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 font-sans text-slate-900">
@@ -159,6 +169,30 @@ export default function Catalogs() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
         </div>
+
+        {/* Year selector for benchmarks */}
+        {activeTab === 'benchmarks' && benchmarkYears.length > 0 && (
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {benchmarkYears.map(y => (
+                <button
+                  key={y}
+                  onClick={() => setBenchmarkYear(y)}
+                  className={`px-3 py-1.5 text-sm font-bold rounded-md transition-colors border ${
+                    benchmarkYear === y
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-slate-500">
+              <span className="font-bold text-slate-700">{filteredBenchmarks.length}</span> mục điểm chuẩn
+            </div>
+          </div>
+        )}
         
         <div className="overflow-x-auto">
           {loading ? (

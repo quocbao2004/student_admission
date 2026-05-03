@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Search, Loader, User, FileText, AlertTriangle, Eye, ArrowLeft, CreditCard, Layers, Download, FileCheck } from 'lucide-react';
+import { Check, X, Search, Loader, User, FileText, AlertTriangle, Eye, ArrowLeft, CreditCard, Layers, Download, FileCheck, Target } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -13,6 +13,7 @@ export default function Verifications() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   
   // UI States
   const [previewDoc, setPreviewDoc] = useState(null); // Document for Quick View Modal
@@ -44,14 +45,15 @@ export default function Verifications() {
   const fetchProfiles = async () => {
     try {
       setLoading(true);
-      const res = await authFetch(`${API_BASE}/admissions/admin/profiles/`);
+      const res = await authFetch(`${API_BASE}/admissions/admin/profiles/?year=${filterYear}`);
       const data = await res.json();
       setProfiles(data);
-      if (data.length > 0 && !selectedProfile) {
+      if (data.length > 0) {
         handleSelectProfile(data[0]);
+      } else {
+        setSelectedProfile(null);
       }
     } catch (err) {
-      console.error(err);
       showToast('Lỗi tải dữ liệu hồ sơ', 'error');
     } finally {
       setLoading(false);
@@ -60,7 +62,7 @@ export default function Verifications() {
 
   useEffect(() => {
     fetchProfiles();
-  }, []);
+  }, [filterYear]);
 
   const handleSelectProfile = (p) => {
     setSelectedProfile(p);
@@ -68,6 +70,13 @@ export default function Verifications() {
     setDocRejectionId(null);
     setPreviewDoc(null);
   };
+
+  // --- Workflow stepper derived state ---
+  const step1Done = selectedProfile?.payment_status === 'SUCCESS';
+  const totalDocs = selectedProfile?.documents?.length ?? 0;
+  const verifiedDocs = selectedProfile?.documents?.filter(d => d.status === 'VERIFIED').length ?? 0;
+  const step2Done = totalDocs > 0 && verifiedDocs === totalDocs;
+  const canApprove = step1Done && step2Done;
 
   const handleVerify = async (status) => {
     if (!selectedProfile) return;
@@ -196,11 +205,25 @@ export default function Verifications() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Hậu kiểm & Duyệt Hồ sơ</h2>
-          <p className="text-sm text-slate-500">Đối soát thông tin tổng thể và thẩm định minh chứng.</p>
+          <p className="text-sm text-slate-500">Đối soát thông tin tổng thể và thẩm định minh chứng — <span className="font-bold text-slate-700">Năm {filterYear}</span></p>
         </div>
-        <div className="text-left md:text-right">
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tổng số hồ sơ</span>
-          <div className="text-2xl font-bold text-slate-900">{profiles.length}</div>
+        <div className="flex items-center gap-4">
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Năm tuyển sinh</label>
+            <select
+              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-colors"
+              value={filterYear}
+              onChange={(e) => setFilterYear(Number(e.target.value))}
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tổng số hồ sơ</span>
+            <div className="text-2xl font-bold text-slate-900">{profiles.length}</div>
+          </div>
         </div>
       </div>
       
@@ -263,13 +286,34 @@ export default function Verifications() {
                     {getStatusBadge(p.status)}
                   </div>
                   <div className="flex justify-between items-center mt-1">
-                    <span className="text-[11px] font-medium text-slate-500 font-mono tracking-wide">{p.cccd || '---'}</span>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-medium text-slate-500 font-mono tracking-wide">{p.cccd || '---'}</span>
+                      <span className="text-[10px] text-slate-400 font-bold">Khóa {new Date(p.created_at).getFullYear()}</span>
+                    </div>
                     {p.payment_status === 'SUCCESS' ? (
                       <span className="text-[9px] text-[#027A48] font-bold bg-[#ECFDF3] border border-[#D1FADF] px-1.5 py-0.5 rounded">ĐÃ NỘP PHÍ</span>
                     ) : (
                       <span className="text-[9px] text-slate-400 font-bold bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">CHƯA NỘP</span>
                     )}
                   </div>
+                  {/* Nguyện vọng đăng ký (Summary) */}
+                  {p.applications && p.applications.length > 0 && (
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex flex-col gap-0.5">
+                      {p.applications.slice(0, 2).map(app => (
+                        <div key={app.id} className="flex justify-between items-center text-[10px] leading-tight">
+                          <span className="font-bold text-slate-600 truncate max-w-[130px]">
+                            {app.major_code} <span className="text-slate-400 font-normal">| {app.combination_code || '---'}</span>
+                          </span>
+                          <span className="text-slate-400 font-bold bg-slate-100 px-1 rounded">NV{app.priority_order}</span>
+                        </div>
+                      ))}
+                      {p.applications.length > 2 && (
+                        <div className="text-[9px] text-slate-400 font-bold italic mt-0.5">
+                          + {p.applications.length - 2} nguyện vọng khác
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -280,60 +324,172 @@ export default function Verifications() {
         <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-6 pr-2">
           {selectedProfile ? (
             <>
-              {/* --- Section 1: Profile Header & Global Action --- */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col xl:flex-row justify-between xl:items-center gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center shadow-inner flex-shrink-0">
-                    <User size={28} />
+              {/* --- Section 1: Profile Header & Workflow Stepper --- */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                {/* Profile identity row */}
+                <div className="p-5 flex items-center gap-4 border-b border-slate-100">
+                  <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center shadow-inner flex-shrink-0">
+                    <User size={24} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 leading-tight mb-1">{selectedProfile.full_name}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                      <span>{selectedProfile.email}</span>
-                      <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold text-slate-900 leading-tight truncate">{selectedProfile.full_name}</h3>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
+                      <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Năm {new Date(selectedProfile.created_at).getFullYear()}</span>
+                      <span className="w-1 h-1 bg-slate-300 rounded-full flex-shrink-0"></span>
+                      <span className="truncate">{selectedProfile.email}</span>
+                      <span className="w-1 h-1 bg-slate-300 rounded-full flex-shrink-0"></span>
                       <span>{selectedProfile.phone}</span>
-                      <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                      {selectedProfile.payment_status === 'SUCCESS' ? (
-                        <span className="text-[#027A48] font-bold flex items-center gap-1"><Check size={12}/> Đã nộp lệ phí</span>
-                      ) : (
-                        <span className="text-[#B93815] font-bold flex items-center gap-1"><AlertTriangle size={12}/> Chưa nộp lệ phí</span>
-                      )}
+                    </div>
+                  </div>
+                  {/* Overall status badge */}
+                  {(selectedProfile.status === 'VERIFIED' || selectedProfile.status === 'REJECTED') && (
+                    <div className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                      selectedProfile.status === 'VERIFIED'
+                        ? 'bg-[#ECFDF3] text-[#027A48] border border-[#D1FADF]'
+                        : 'bg-[#FEF3F2] text-[#B42318] border border-[#FEE4E2]'
+                    }`}>
+                      {selectedProfile.status === 'VERIFIED' ? <Check size={12}/> : <X size={12}/>}
+                      {selectedProfile.status === 'VERIFIED' ? 'Đã phê duyệt' : 'Đã từ chối'}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3-Step Workflow Progress Stepper */}
+                <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-100">
+                  <div className="flex items-center gap-0">
+                    {/* Step 1: Lệ phí */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
+                        step1Done
+                          ? 'bg-[#027A48] border-[#027A48] text-white'
+                          : 'bg-white border-slate-300 text-slate-400'
+                      }`}>
+                        {step1Done ? <Check size={14}/> : '1'}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${step1Done ? 'text-[#027A48]' : 'text-slate-500'}`}>Lệ phí</div>
+                        <div className="text-[10px] text-slate-400 leading-none">
+                          {step1Done ? 'Đã xác nhận' : 'Chưa nộp phí'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Connector 1-2 */}
+                    <div className={`flex-1 h-px mx-4 ${step1Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
+
+                    {/* Step 2: Minh chứng */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
+                        step2Done
+                          ? 'bg-[#027A48] border-[#027A48] text-white'
+                          : totalDocs > 0 && verifiedDocs > 0
+                          ? 'bg-amber-400 border-amber-400 text-white'
+                          : 'bg-white border-slate-300 text-slate-400'
+                      }`}>
+                        {step2Done ? <Check size={14}/> : '2'}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${
+                          step2Done ? 'text-[#027A48]' : totalDocs > 0 && verifiedDocs > 0 ? 'text-amber-600' : 'text-slate-500'
+                        }`}>Minh chứng</div>
+                        <div className="text-[10px] text-slate-400 leading-none">
+                          {totalDocs === 0 ? 'Chưa có tài liệu' : `${verifiedDocs}/${totalDocs} đã duyệt`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Connector 2-3 */}
+                    <div className={`flex-1 h-px mx-4 ${step2Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
+
+                    {/* Step 3: Phê duyệt hồ sơ */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
+                        selectedProfile.status === 'VERIFIED'
+                          ? 'bg-[#027A48] border-[#027A48] text-white'
+                          : selectedProfile.status === 'REJECTED'
+                          ? 'bg-[#B42318] border-[#B42318] text-white'
+                          : 'bg-white border-slate-300 text-slate-400'
+                      }`}>
+                        {selectedProfile.status === 'VERIFIED' ? <Check size={14}/>
+                          : selectedProfile.status === 'REJECTED' ? <X size={14}/>
+                          : '3'}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${
+                          selectedProfile.status === 'VERIFIED' ? 'text-[#027A48]'
+                          : selectedProfile.status === 'REJECTED' ? 'text-[#B42318]'
+                          : 'text-slate-500'
+                        }`}>Phê duyệt</div>
+                        <div className="text-[10px] text-slate-400 leading-none">
+                          {selectedProfile.status === 'VERIFIED' ? 'Hoàn thành'
+                            : selectedProfile.status === 'REJECTED' ? 'Đã từ chối'
+                            : canApprove ? 'Sẵn sàng' : 'Chờ bước trên'}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 xl:ml-auto">
+                {/* Action row */}
+                <div className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  {/* Payment confirm button (Step 1 guard) */}
+                  {!step1Done && (
+                    <button
+                      onClick={handleConfirmPayment}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-slate-900 hover:bg-black text-white rounded-lg shadow-sm transition-colors"
+                    >
+                      {actionLoading ? <Loader className="animate-spin" size={15}/> : <CreditCard size={15}/>}
+                      Xác nhận đã thu lệ phí
+                    </button>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:ml-auto w-full sm:w-auto">
                   {selectedProfile.status === 'PENDING' || selectedProfile.status === 'PENDING_VERIFY' ? (
                     <>
                       <input 
                         type="text"
-                        className="w-full sm:w-64 p-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-slate-50" 
+                        className="w-full sm:w-60 p-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-slate-50" 
                         placeholder="Lý do từ chối (nếu có)..."
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
                       />
                       <div className="flex gap-2 w-full sm:w-auto">
                         <button 
-                          className="flex-1 sm:flex-none px-4 py-2.5 bg-white text-slate-600 font-bold rounded-lg border border-slate-200 hover:bg-[#FEF3F2] hover:text-[#B42318] hover:border-[#FEE4E2] transition-colors shadow-sm flex items-center justify-center gap-2"
+                          className="flex-1 sm:flex-none px-4 py-2.5 bg-white text-slate-600 font-bold rounded-lg border border-slate-200 hover:bg-[#FEF3F2] hover:text-[#B42318] hover:border-[#FEE4E2] transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
                           onClick={() => handleVerify('REJECTED')}
                           disabled={actionLoading}
                         >
-                          <X size={16}/> Từ chối
+                          <X size={15}/> Từ chối
                         </button>
-                        <button 
-                          className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 hover:bg-black text-white font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
-                          onClick={() => handleVerify('VERIFIED')}
-                          disabled={actionLoading}
-                        >
-                          <Check size={16}/> Phê duyệt
-                        </button>
+                        <div className="relative group">
+                          <button 
+                            className={`flex-1 sm:flex-none px-6 py-2.5 font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 text-sm ${
+                              canApprove
+                                ? 'bg-slate-900 hover:bg-black text-white cursor-pointer'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                            onClick={() => canApprove && handleVerify('VERIFIED')}
+                            disabled={actionLoading || !canApprove}
+                          >
+                            {actionLoading ? <Loader className="animate-spin" size={15}/> : <Check size={15}/>}
+                            Phê duyệt hồ sơ
+                          </button>
+                          {!canApprove && (
+                            <div className="absolute bottom-full right-0 mb-2 w-56 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                              {!step1Done && '⚠ Chưa xác nhận lệ phí.'}
+                              {step1Done && !step2Done && `⚠ Còn ${totalDocs - verifiedDocs} tài liệu chưa duyệt.`}
+                              <div className="absolute top-full right-4 border-4 border-transparent border-t-slate-900"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </>
                   ) : (
-                    <div className={`px-4 py-3 rounded-lg border flex items-center justify-between w-full sm:w-auto gap-6 shadow-sm ${selectedProfile.status === 'VERIFIED' ? 'bg-[#ECFDF3] border-[#D1FADF]' : 'bg-[#FEF3F2] border-[#FEE4E2]'}`}>
+                    <div className={`px-4 py-2.5 rounded-lg border flex items-center gap-4 shadow-sm ${selectedProfile.status === 'VERIFIED' ? 'bg-[#ECFDF3] border-[#D1FADF]' : 'bg-[#FEF3F2] border-[#FEE4E2]'}`}>
                       <div className={`text-sm font-bold flex items-center gap-2 ${selectedProfile.status === 'VERIFIED' ? 'text-[#027A48]' : 'text-[#B42318]'}`}>
-                        {selectedProfile.status === 'VERIFIED' ? <Check size={18} /> : <X size={18} />}
-                        {selectedProfile.status === 'VERIFIED' ? 'Đã duyệt toàn bộ' : 'Đã từ chối'}
+                        {selectedProfile.status === 'VERIFIED' ? <Check size={16} /> : <X size={16} />}
+                        {selectedProfile.status === 'VERIFIED' ? 'Đã phê duyệt toàn bộ' : 'Đã từ chối hồ sơ'}
                       </div>
                       <button 
                         className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-md shadow-sm transition-colors"
@@ -344,6 +500,7 @@ export default function Verifications() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
 
@@ -402,6 +559,77 @@ export default function Verifications() {
                 </div>
 
               </div>
+
+              {/* --- Section: Nguyện vọng đăng ký --- */}
+              {selectedProfile.applications?.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
+                    <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                      <Target size={16} className="text-slate-400" />
+                      Nguyện vọng đăng ký ({selectedProfile.applications.length})
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-white border-b border-slate-200">
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">NV</th>
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Ngành</th>
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Phương thức</th>
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Tổ hợp</th>
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider text-center">Tổng điểm</th>
+                          <th className="px-5 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider text-right">Kết quả</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedProfile.applications
+                          .sort((a, b) => a.priority_order - b.priority_order)
+                          .map(app => (
+                            <tr key={app.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-5 py-4">
+                                <span className="inline-flex items-center justify-center w-7 h-7 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+                                  {app.priority_order}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="font-bold text-slate-800">{app.major_name}</div>
+                                <div className="text-[11px] text-slate-400 font-mono mt-0.5">{app.major_code}</div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="text-xs font-medium bg-slate-100 px-2 py-1 rounded">{app.method_name}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="font-mono text-sm text-slate-600">{app.combination_code || '—'}</span>
+                              </td>
+                              <td className="px-5 py-4 text-center">
+                                {app.calculated_score != null ? (
+                                  <span className="text-base font-bold text-slate-900 tabular-nums">{app.calculated_score.toFixed(2)}</span>
+                                ) : (
+                                  <span className="text-xs text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 text-right">
+                                {app.admission_result ? (
+                                  app.admission_result.is_passed ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase rounded-md bg-[#ECFDF3] text-[#027A48] border border-[#D1FADF]">
+                                      <Check size={10} /> Trúng tuyển
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase rounded-md bg-slate-100 text-slate-400 border border-slate-200">
+                                      <X size={10} /> Không đạt
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-medium">Chờ xét</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* --- Section 3: Documents Table --- */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-[350px]">

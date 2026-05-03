@@ -8,6 +8,10 @@ import AdminLayout from './layouts/AdminLayout';
 
 // Public & Auth Pages
 import Home from './pages/public/Home';
+import Majors from './pages/public/Majors';
+import Methods from './pages/public/Methods';
+import Benchmarks from './pages/public/Benchmarks';
+import Contact from './pages/public/Contact';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 
@@ -25,6 +29,7 @@ import Catalogs from './pages/admin/Catalogs';
 import Verifications from './pages/admin/Verifications';
 import Formulas from './pages/admin/Formulas';
 import Admissions from './pages/admin/Admissions';
+import Seasons from './pages/admin/Seasons';
 
 import './App.css';
 
@@ -48,6 +53,10 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
             <Route index element={<Home />} />
+            <Route path="majors" element={<Majors />} />
+            <Route path="methods" element={<Methods />} />
+            <Route path="benchmarks" element={<Benchmarks />} />
+            <Route path="contact" element={<Contact />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
           </Route>
@@ -79,6 +88,7 @@ function App() {
             <Route path="verifications" element={<Verifications />} />
             <Route path="formulas" element={<Formulas />} />
             <Route path="admissions" element={<Admissions />} />
+            <Route path="seasons" element={<Seasons />} />
           </Route>
 
           {/* Fallback */}
@@ -90,4 +100,3 @@ function App() {
 }
 
 export default App;
-

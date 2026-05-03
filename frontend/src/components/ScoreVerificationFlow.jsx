@@ -458,11 +458,12 @@ export default function ScoreVerificationFlow({ profileStatus, isVerified }) {
           scoreRes.json(), catRes.json(), docRes.json()
         ]);
 
+        let newMax = 0;
         if (scoreRes.ok) {
           const map = {};
           scoreData.forEach(s => { map[s.subject] = String(s.score); });
           setScoresMap(map);
-          if (scoreData.length > 0) setMaxReached(1);
+          if (scoreData.length > 0) newMax = 1;
         }
         if (catRes.ok) setCombinations(catData.combinations || []);
         if (docRes.ok) {
@@ -470,13 +471,17 @@ export default function ScoreVerificationFlow({ profileStatus, isVerified }) {
             ['ACADEMIC_RECORD', 'HSA_CERT', 'IELTS_CERT', 'SAT_CERT'].includes(d.type)
           );
           setDocuments(scoreDocs);
-          if (scoreDocs.length > 0 && maxReached >= 1) setMaxReached(2);
+          if (scoreDocs.length > 0 && newMax >= 1) newMax = 2;
         }
+        
+        setMaxReached(newMax);
         
         // Auto-navigate to correct step
         if (profileStatus === 'VERIFIED' || profileStatus === 'PENDING_VERIFY' || profileStatus === 'REJECTED') {
           setStep(3);
           setMaxReached(3);
+        } else {
+          setStep(newMax);
         }
       } catch (err) {
         console.error(err);
@@ -575,9 +580,25 @@ export default function ScoreVerificationFlow({ profileStatus, isVerified }) {
     }
   };
 
-  const handleFinalSubmit = () => {
-    setStep(3);
-    setMaxReached(3);
+  const handleFinalSubmit = async () => {
+    try {
+      setUploading(true);
+      setAlert(null);
+      const res = await authFetch(`${API_BASE}/admissions/profile/submit/`, { method: 'POST' });
+      if (res.ok) {
+        setStep(3);
+        setMaxReached(3);
+        // Tải lại trang để refresh lại AdmissionFlowContext (chuyển sang bước chờ xác minh trên header)
+        window.location.reload();
+      } else {
+        const err = await res.json();
+        setAlert({ type: 'error', message: err.error || 'Lỗi gửi xác minh.' });
+      }
+    } catch (err) {
+      setAlert({ type: 'error', message: 'Lỗi gửi xác minh.' });
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) return (

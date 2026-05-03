@@ -73,7 +73,10 @@ export function AdmissionFlowProvider({ children }) {
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
-          updates.hasProfile = true; 
+          // Profile is complete ONLY if they submitted it for verification (so status is not DRAFT)
+          // or if they have filled out basic info. Let's rely on status.
+          updates.hasProfile = profileData.status !== 'DRAFT';
+          
           const verifiedStatuses = ['VERIFIED', 'PAID', 'RANKED', 'RESULT_PUBLISHED'];
           if (verifiedStatuses.includes(profileData.status)) {
             updates.isVerified = true;

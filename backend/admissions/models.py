@@ -70,12 +70,41 @@ class Score(models.Model):
         managed = False
 
 
+class AdmissionSeason(models.Model):
+    STATUS_CHOICES = [
+        ('PLANNING', 'Đang lên kế hoạch'),
+        ('OPEN', 'Đang mở đăng ký'),
+        ('CLOSED', 'Đã đóng đăng ký'),
+        ('PROCESSING', 'Đang xét tuyển'),
+        ('COMPLETED', 'Hoàn thành'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    year = models.IntegerField()
+    round_number = models.IntegerField(default=1)
+    name = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PLANNING')
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'admission_seasons'
+        ordering = ['-year', '-round_number']
+        unique_together = ['year', 'round_number']
+
+    def __str__(self):
+        return f"{self.name} ({self.year} - Đợt {self.round_number})"
+
+
 class Application(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='applications')
     major = models.ForeignKey(Major, on_delete=models.DO_NOTHING)
     method = models.ForeignKey(AdmissionMethod, on_delete=models.DO_NOTHING)
     combination = models.ForeignKey(SubjectCombination, on_delete=models.DO_NOTHING, null=True, blank=True)
+    season = models.ForeignKey(AdmissionSeason, on_delete=models.SET_NULL, null=True, blank=True, related_name='applications')
     priority_order = models.IntegerField()
     status = models.CharField(max_length=20, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)

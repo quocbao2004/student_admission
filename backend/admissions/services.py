@@ -15,6 +15,7 @@ from .models import (
     Document,
     DocumentVerificationLog,
     Major,
+    MajorBenchmark,
     Payment,
     Profile,
     ProfileWorkflowLog,
@@ -108,18 +109,39 @@ class ProfileService:
         if normalized_status in {ProfileState.PAID, ProfileState.RANKED, ProfileState.RESULT_PUBLISHED}:
             raise ValueError("Hồ sơ đã qua giai đoạn chỉnh sửa.")
         updated = ProfileRepository.update(profile, validated_data)
-        normalized_status = ProfileService.normalize_status(updated.status)
+        return updated
+
+    @staticmethod
+    def submit_my_profile(user):
+        profile = ProfileRepository.get_by_user_id(user.id)
+        if not profile:
+            raise ValueError("Hồ sơ không tồn tại.")
+        normalized_status = ProfileService.normalize_status(profile.status)
+        if normalized_status != ProfileState.DRAFT:
+            raise ValueError("Hồ sơ đã được gửi đi.")
+        
         has_required_data = all(
-            [updated.dob, updated.gender, updated.address and str(updated.address).strip()]
+            [profile.dob, profile.gender, profile.address and str(profile.address).strip()]
         )
-        if normalized_status == ProfileState.DRAFT and has_required_data:
-            updated = ProfileService.transition_profile(
-                updated,
-                ProfileState.PENDING_VERIFY,
-                actor=user,
-                action="CANDIDATE_SUBMIT_PROFILE",
-                note="Thí sinh hoàn tất thông tin hồ sơ và gửi duyệt.",
-            )
+        if not has_required_data:
+            raise ValueError("Bạn cần điền đủ thông tin cá nhân (Ngày sinh, Giới tính, Địa chỉ) trước khi nộp hồ sơ.")
+
+        # Check if they have scores
+        from .models import Score, Document
+        if not Score.objects.filter(profile=profile).exists():
+            raise ValueError("Bạn cần nhập điểm học bạ trước khi nộp hồ sơ.")
+            
+        # Check if they have the required ACADEMIC_RECORD doc
+        if not Document.objects.filter(profile=profile, type='ACADEMIC_RECORD').exists():
+            raise ValueError("Bạn cần tải lên ảnh học bạ trước khi nộp hồ sơ.")
+
+        updated = ProfileService.transition_profile(
+            profile,
+            ProfileState.PENDING_VERIFY,
+            actor=user,
+            action="CANDIDATE_SUBMIT_PROFILE",
+            note="Thí sinh hoàn tất thông tin hồ sơ và gửi duyệt.",
+        )
         return updated
 
     @staticmethod
@@ -493,6 +515,85 @@ class StatisticService:
             created_benchmarks.append(bm)
             
         return {"published_benchmarks": len(created_benchmarks), "year": year}
+
+    @staticmethod
+    def send_admission_emails(major_id):
+        """Gửi email thông báo trúng tuyển/không đạt cho tất cả thí sinh đã xếp hạng trong ngành."""
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        major = Major.objects.get(id=major_id)
+        results = AdmissionResult.objects.filter(
+            application__major=major
+        ).select_related('application__profile__user', 'application__method')
+
+        sent_count = 0
+        failed_count = 0
+        errors = []
+
+        for res in results:
+            user = res.application.profile.user
+            if not user.email:
+                continue
+
+            if res.is_passed:
+                subject = f"[Thông báo trúng tuyển] {major.name} - {major.code}"
+                message = (
+                    f"Kính gửi {user.full_name},\n\n"
+                    f"Chúng tôi vui mừng thông báo bạn đã TRÚNG TUYỂN vào ngành:\n"
+                    f"  Ngành: {major.name} ({major.code})\n"
+                    f"  Phương thức: {res.application.method.name}\n"
+                    f"  Tổng điểm: {round(res.total_score, 2)}\n"
+                    f"  Hạng: {res.ranked_position}\n\n"
+                    f"Vui lòng đăng nhập vào hệ thống để xem Giấy báo trúng tuyển chi tiết.\n\n"
+                    f"Trân trọng,\nBan Tuyển sinh"
+                )
+            else:
+                subject = f"[Thông báo kết quả xét tuyển] {major.name} - {major.code}"
+                message = (
+                    f"Kính gửi {user.full_name},\n\n"
+                    f"Chúng tôi thông báo rằng bạn KHÔNG ĐẠT điểm chuẩn vào ngành:\n"
+                    f"  Ngành: {major.name} ({major.code})\n"
+                    f"  Tổng điểm: {round(res.total_score, 2)}\n"
+                    f"  Hạng: {res.ranked_position}\n\n"
+                    f"Cảm ơn bạn đã tham gia xét tuyển. Chúc bạn thành công.\n\n"
+                    f"Trân trọng,\nBan Tuyển sinh"
+                )
+
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@admission.edu.vn'),
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                sent_count += 1
+                
+                # Ghi log lại để lưu trạng thái "Đã gửi email" vào DB
+                ProfileWorkflowLog.objects.create(
+                    profile=res.application.profile,
+                    actor=None,
+                    from_status=res.application.profile.status,
+                    to_status=res.application.profile.status,
+                    action="ADMIN_SEND_EMAIL",
+                    note="Hệ thống đã gửi email thông báo kết quả."
+                )
+            except Exception as e:
+                failed_count += 1
+                errors.append(str(e))
+
+        if failed_count > 0 and sent_count == 0:
+            error_msg = errors[0] if errors else "Lỗi cấu hình SMTP."
+            raise ValueError(f"Gửi thất bại toàn bộ {failed_count} email. Vui lòng kiểm tra lại cấu hình tài khoản Email (App Password). Lỗi chi tiết: {error_msg}")
+
+        return {
+            "major": major.name,
+            "sent_count": sent_count,
+            "failed_count": failed_count,
+            "errors": errors[:5],  # Trả về tối đa 5 lỗi đầu tiên
+        }
+
 
 class VnpayService:
     @staticmethod

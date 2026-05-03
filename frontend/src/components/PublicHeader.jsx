@@ -1,24 +1,23 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Phone,
-  Mail,
-  LogIn,
-  UserPlus,
-  ChevronRight,
+  Phone, Mail, LogIn, UserPlus, ChevronRight,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Trang chủ', to: '/' },
-  { label: 'Giới thiệu', to: '#' },
-  { label: 'Thông tin Tuyển sinh', to: '#' },
-  { label: 'Ngành đào tạo', to: '#' },
-  { label: 'Điểm chuẩn', to: '#' },
-  { label: 'Tin tức & Sự kiện', to: '#' },
-  { label: 'Hỏi đáp', to: '#' },
+  { label: 'Ngành đào tạo', to: '/majors' },
+  { label: 'Phương thức xét tuyển', to: '/methods' },
+  { label: 'Điểm chuẩn', to: '/benchmarks' },
+  { label: 'Liên hệ & FAQ', to: '/contact' },
 ];
 
 export default function PublicHeader() {
   const location = useLocation();
+
+  const isActive = (to) => {
+    if (to === '/') return location.pathname === '/';
+    return location.pathname.startsWith(to);
+  };
 
   return (
     <header>
@@ -31,32 +30,24 @@ export default function PublicHeader() {
               Hotline Tuyển sinh: <strong style={{ color: 'rgba(255,255,255,0.9)' }}>1900 1234</strong>
             </span>
             <div className="divider" />
-            <span className="d-flex align-items-center gap-1">
+            <span className="d-none d-md-flex align-items-center gap-1">
               <Mail size={11} />
               tuyensinh@daihocabc.edu.vn
             </span>
           </div>
 
           <div className="d-flex align-items-center gap-3">
-            <a href="#" className="d-flex align-items-center gap-1">
-              Trang chủ chính thức
-            </a>
-            <div className="divider" />
-            <a href="#" className="d-flex align-items-center gap-1">
-              Cổng sinh viên
-            </a>
-            <div className="divider" />
             <Link
               to="/login"
               className="d-flex align-items-center gap-1"
-              style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}
+              style={{ color: 'var(--text-primary)', fontWeight: 600 }}
             >
               <LogIn size={11} /> Đăng nhập
             </Link>
             <Link
               to="/register"
               style={{
-                backgroundColor: 'var(--uni-secondary)',
+                backgroundColor: 'var(--uni-primary)',
                 color: '#fff',
                 padding: '2px 10px',
                 borderRadius: '2px',
@@ -76,22 +67,12 @@ export default function PublicHeader() {
       {/* Branding bar */}
       <div className="pub-branding">
         <div className="container d-flex align-items-center gap-4">
-          {/* University seal */}
-          <div className="pub-branding__seal">
-            ĐH<br />ABC
-          </div>
-
-          {/* Title */}
           <div className="flex-grow-1">
-            <div className="pub-branding__title">
-              Trường Đại học ABC
-            </div>
+            <div className="pub-branding__title" style={{ color: 'var(--uni-primary)' }}>ĐẠI HỌC ABC</div>
             <div className="pub-branding__subtitle">
               Cổng thông tin tuyển sinh &bull; Admission Portal 2026
             </div>
           </div>
-
-          {/* Accreditation badge */}
           <div
             className="d-none d-lg-flex flex-column align-items-center text-center"
             style={{
@@ -103,12 +84,8 @@ export default function PublicHeader() {
               flexShrink: 0,
             }}
           >
-            <span style={{ color: 'var(--uni-gold)', fontWeight: 800, fontSize: '1rem' }}>
-              AUN-QA
-            </span>
-            <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Kiểm định chất lượng
-            </span>
+            <span style={{ color: 'var(--uni-primary)', fontWeight: 800, fontSize: '1rem' }}>AUN-QA</span>
+            <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>Kiểm định chất lượng</span>
           </div>
         </div>
       </div>
@@ -133,7 +110,7 @@ export default function PublicHeader() {
               {NAV_ITEMS.map((item) => (
                 <li className="nav-item" key={item.label}>
                   <Link
-                    className={`nav-link ${location.pathname === item.to ? 'active' : ''}`}
+                    className={`nav-link ${isActive(item.to) ? 'active' : ''}`}
                     to={item.to}
                   >
                     {item.label}
@@ -142,7 +119,6 @@ export default function PublicHeader() {
               ))}
             </ul>
 
-            {/* Call-to-action on right */}
             <div className="ms-auto d-none d-lg-flex align-items-center">
               <Link
                 to="/register"

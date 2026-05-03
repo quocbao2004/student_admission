@@ -11,7 +11,7 @@ export default function CandidateHeader() {
   const displayName = user ? (user.full_name || user.email) : 'Khách';
 
   const isStepDone = (stepIndex) => {
-    if (stepIndex === 0) return completion.isVerified;
+    if (stepIndex === 0) return completion.hasProfile;
     if (stepIndex === 1) return completion.hasAspirations;
     if (stepIndex === 2) return completion.hasPaid;
     return false;

@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     MyProfileView, 
+    ProfileSubmitView,
     MyScoresView,
     DocumentListUploadView, 
     DocumentDeleteView,
@@ -23,15 +24,18 @@ from .views import (
     AdminRankingView,
     AdminPublishResultView,
     AdminMajorBenchmarkCRUDView,
-    AdminMajorBenchmarkCRUDView,
     AdminPublishBenchmarkView,
     AdminExportResultCSVView,
+    AdminSendAdmissionEmailsView,
+    AdminMajorWorkflowStatusView,
     CandidateAdmissionLetterDataView,
+    AdminSeasonCRUDView,
 )
 
 urlpatterns = [
     # Candidate routes
     path('profile/me/', MyProfileView.as_view(), name='my-profile'),
+    path('profile/submit/', ProfileSubmitView.as_view(), name='profile-submit'),
     path('profile/scores/', MyScoresView.as_view(), name='my-scores'),
     path('documents/', DocumentListUploadView.as_view(), name='documents-list-upload'),
     path('documents/<uuid:doc_id>/', DocumentDeleteView.as_view(), name='document-delete'),
@@ -61,6 +65,10 @@ urlpatterns = [
     path('admin/ranking/<uuid:major_id>/publish/', AdminPublishResultView.as_view(), name='admin-publish-result'),
     path('admin/ranking/<uuid:major_id>/publish-benchmark/', AdminPublishBenchmarkView.as_view(), name='admin-publish-benchmark'),
     path('admin/ranking/<uuid:major_id>/export-csv/', AdminExportResultCSVView.as_view(), name='admin-export-csv'),
+    path('admin/ranking/<uuid:major_id>/send-emails/', AdminSendAdmissionEmailsView.as_view(), name='admin-send-emails'),
+    path('admin/ranking/<uuid:major_id>/workflow-status/', AdminMajorWorkflowStatusView.as_view(), name='admin-workflow-status'),
     path('admin/benchmarks/', AdminMajorBenchmarkCRUDView.as_view(), name='admin-benchmarks-list'),
     path('admin/benchmarks/<uuid:pk>/', AdminMajorBenchmarkCRUDView.as_view(), name='admin-benchmarks-detail'),
+    path('admin/seasons/', AdminSeasonCRUDView.as_view(), name='admin-seasons-list'),
+    path('admin/seasons/<uuid:pk>/', AdminSeasonCRUDView.as_view(), name='admin-seasons-detail'),
 ]

@@ -20,6 +20,7 @@ from .models import (
     AdmissionResult,
     DocumentVerificationLog,
     ProfileWorkflowLog,
+    AdmissionSeason,
 )
 from .serializers import (
     ProfileUpdateDTO,
@@ -34,6 +35,7 @@ from .serializers import (
     ApplicationResponseDTO,
     MajorStatsResponseDTO,
     AdminMajorBenchmarkCRUDSerializer,
+    AdmissionSeasonSerializer,
 )
 from .services import ProfileService, DocumentService, CatalogService, AdmissionService, StatisticService, PaymentService
 from django.views.decorators.csrf import csrf_exempt
@@ -97,6 +99,7 @@ class AdminProfileSerializer(serializers.ModelSerializer):
     scores = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
     workflow_history = serializers.SerializerMethodField()
+    applications = ApplicationResponseDTO(many=True, read_only=True)
 
     class Meta:
         model = Profile
@@ -145,6 +148,18 @@ class MyProfileView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         try:
             profile = ProfileService.update_my_profile(request.user, serializer.validated_data)
+            data = ProfileResponseDTO(profile).data
+            return Response(data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileSubmitView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            profile = ProfileService.submit_my_profile(request.user)
             data = ProfileResponseDTO(profile).data
             return Response(data)
         except ValueError as e:
@@ -338,7 +353,10 @@ class AdminProfileListView(APIView):
 
     def get(self, request):
         status_filter = request.query_params.get('status', None)
+        year_filter = request.query_params.get('year', None)
         profiles = Profile.objects.all().order_by('-created_at')
+        if year_filter:
+            profiles = profiles.filter(created_at__year=int(year_filter))
         if status_filter:
             if status_filter in ['PENDING', 'PENDING_VERIFY']:
                 profiles = profiles.filter(status__in=['PENDING', 'PENDING_VERIFY'])
@@ -526,9 +544,12 @@ class AdminMajorBenchmarkCRUDView(APIView):
 
     def get(self, request):
         major_id = request.query_params.get('major_id')
+        year = request.query_params.get('year')
         benchmarks = MajorBenchmark.objects.select_related('major', 'method').all().order_by('-year', 'major__code')
         if major_id:
             benchmarks = benchmarks.filter(major_id=major_id)
+        if year:
+            benchmarks = benchmarks.filter(year=int(year))
         return Response(AdminMajorBenchmarkCRUDSerializer(benchmarks, many=True).data)
 
     def post(self, request):
@@ -563,6 +584,86 @@ class AdminPublishBenchmarkView(APIView):
         return Response(data)
 
 
+class AdminSendAdmissionEmailsView(APIView):
+    """Gửi email thông báo kết quả xét tuyển cho tất cả thí sinh của một ngành."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, major_id):
+        major = Major.objects.filter(id=major_id).first()
+        if not major:
+            return Response({"error": "Không tìm thấy ngành học."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Kiểm tra đã có kết quả xếp hạng chưa
+        has_results = AdmissionResult.objects.filter(application__major=major).exists()
+        if not has_results:
+            return Response(
+                {"error": "Chưa có kết quả xếp hạng. Vui lòng chạy lọc ảo trước."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            data = StatisticService.send_admission_emails(major_id)
+            return Response(data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminMajorWorkflowStatusView(APIView):
+    """Trả về trạng thái workflow thực tế của một ngành từ DB."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request, major_id):
+        from datetime import datetime
+        from django.db.models import Q
+
+        major = Major.objects.filter(id=major_id).first()
+        if not major:
+            return Response({"error": "Không tìm thấy ngành."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Bước 1: Đã chạy lọc ảo chưa?
+        has_ranked = AdmissionResult.objects.filter(
+            application__major=major
+        ).exists()
+
+        # Bước 2: Đã công bố kết quả chưa?
+        # Kiểm tra có profile nào đã chuyển sang RESULT_PUBLISHED cho ngành này không
+        has_published = Profile.objects.filter(
+            applications__major=major,
+            status='RESULT_PUBLISHED'
+        ).exists()
+
+        # Bước 3: Đã chốt điểm chuẩn chưa?
+        current_year = datetime.now().year
+        has_benchmarked = MajorBenchmark.objects.filter(
+            major=major,
+            year=current_year
+        ).exists()
+
+        # Bước 4: Đã gửi email chưa?
+        # Kiểm tra xem có log gửi email nào cho các thí sinh của ngành này không
+        has_email_sent = ProfileWorkflowLog.objects.filter(
+            profile__applications__major=major,
+            action="ADMIN_SEND_EMAIL"
+        ).exists()
+
+        # Thống kê nhanh
+        total = AdmissionResult.objects.filter(application__major=major).count()
+        passed = AdmissionResult.objects.filter(application__major=major, is_passed=True).count()
+
+        return Response({
+            "major_id": str(major.id),
+            "major_name": major.name,
+            "has_ranked": has_ranked,
+            "has_published": has_published,
+            "has_benchmarked": has_benchmarked,
+            "has_email_sent": has_email_sent,
+            "stats": {
+                "total": total,
+                "passed": passed,
+                "failed": total - passed,
+            }
+        })
+
 class AdminExportResultCSVView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
@@ -575,7 +676,7 @@ class AdminExportResultCSVView(APIView):
             application__major=major,
             is_passed=True
         ).select_related(
-            'application__user', 
+            'application__profile__user', 
             'application__method', 
             'application__combination'
         ).order_by('-total_score')
@@ -588,7 +689,7 @@ class AdminExportResultCSVView(APIView):
         writer.writerow(['STT', 'Họ và tên', 'CCCD', 'Email', 'Phương thức', 'Tổ hợp', 'Tổng điểm', 'Trạng thái'])
         
         for idx, res in enumerate(results, 1):
-            user = res.application.user
+            user = res.application.profile.user
             writer.writerow([
                 idx,
                 user.full_name,
@@ -631,3 +732,55 @@ class CandidateAdmissionLetterDataView(APIView):
             "year": 2026,
             "status": "Đã trúng tuyển"
         })
+
+
+class AdminSeasonCRUDView(APIView):
+    """CRUD cho đợt xét tuyển (AdmissionSeason)."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        seasons = AdmissionSeason.objects.all()
+        if year:
+            seasons = seasons.filter(year=int(year))
+        return Response(AdmissionSeasonSerializer(seasons, many=True).data)
+
+    def post(self, request):
+        serializer = AdmissionSeasonSerializer(data=request.data)
+        if serializer.is_valid():
+            # Nếu is_active=True, tắt active của các season cùng năm
+            if serializer.validated_data.get('is_active'):
+                AdmissionSeason.objects.filter(
+                    year=serializer.validated_data['year'],
+                    is_active=True
+                ).update(is_active=False)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        season = AdmissionSeason.objects.filter(id=pk).first()
+        if not season:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = AdmissionSeasonSerializer(season, data=request.data)
+        if serializer.is_valid():
+            if serializer.validated_data.get('is_active'):
+                AdmissionSeason.objects.filter(
+                    year=serializer.validated_data['year'],
+                    is_active=True
+                ).exclude(id=pk).update(is_active=False)
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        season = AdmissionSeason.objects.filter(id=pk).first()
+        if not season:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if season.applications.exists():
+            return Response(
+                {"error": "Không thể xoá đợt xét tuyển đã có hồ sơ đăng ký."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        season.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

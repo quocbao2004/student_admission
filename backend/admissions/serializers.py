@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from accounts.models import Profile
-from .models import Major, AdmissionMethod, SubjectCombination, Application, MajorBenchmark
+from .models import Major, AdmissionMethod, SubjectCombination, Application, MajorBenchmark, AdmissionSeason
 
 ALLOWED_DOCUMENT_TYPES = [
     'ACADEMIC_RECORD', 'IELTS', 'CCCD', 'ACHIEVEMENT',
@@ -103,12 +103,16 @@ class ApplicationResponseDTO(serializers.ModelSerializer):
     method_name = serializers.CharField(source='method.name', read_only=True)
     combination_code = serializers.CharField(source='combination.code', read_only=True, allow_null=True)
     admission_result = serializers.SerializerMethodField()
+    calculated_score = serializers.SerializerMethodField()
+
+    season_name = serializers.CharField(source='season.name', read_only=True, allow_null=True, default=None)
 
     class Meta:
         model = Application
         fields = ['id', 'major', 'major_name', 'major_code', 'method', 'method_name', 
-                  'combination', 'combination_code', 'priority_order', 'status', 
-                  'admission_result', 'created_at']
+                  'combination', 'combination_code', 'season', 'season_name',
+                  'priority_order', 'status', 
+                  'admission_result', 'calculated_score', 'created_at']
 
     def get_admission_result(self, obj):
         result = obj.result.first() # Using related_name='result'
@@ -120,6 +124,34 @@ class ApplicationResponseDTO(serializers.ModelSerializer):
             "ranked_position": result.ranked_position,
             "published": obj.profile.status == 'RESULT_PUBLISHED'
         }
+
+    def get_calculated_score(self, obj):
+        from .models import Score, ScoreFormula
+        formula_obj = ScoreFormula.objects.filter(method=obj.method).first()
+        if not formula_obj or not obj.combination:
+            return None
+        profile_scores = Score.objects.filter(profile=obj.profile)
+        comb = obj.combination
+        s1 = profile_scores.filter(subject=comb.subject1).first()
+        s2 = profile_scores.filter(subject=comb.subject2).first()
+        s3 = profile_scores.filter(subject=comb.subject3).first()
+        context = {
+            's1': s1.score if s1 else 0,
+            's2': s2.score if s2 else 0,
+            's3': s3.score if s3 else 0,
+            'bonus': (
+                0.75 if obj.profile.priority_area == 'KV1'
+                else 0.5 if 'KV2' in (obj.profile.priority_area or '')
+                else 0
+            ),
+        }
+        try:
+            expr = formula_obj.formula.replace(' ', '')
+            context['avg'] = (context['s1'] + context['s2'] + context['s3']) / 3
+            score = eval(expr, {"__builtins__": None}, context)
+            return round(score, 2)
+        except Exception:
+            return None
 
 # Benchmark & Stats Serializers
 class MajorBenchmarkSerializer(serializers.ModelSerializer):
@@ -146,3 +178,17 @@ class AdminMajorBenchmarkCRUDSerializer(serializers.ModelSerializer):
     class Meta:
         model = MajorBenchmark
         fields = '__all__'
+
+
+class AdmissionSeasonSerializer(serializers.ModelSerializer):
+    application_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AdmissionSeason
+        fields = ['id', 'year', 'round_number', 'name', 'status',
+                  'start_date', 'end_date', 'is_active',
+                  'application_count', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_application_count(self, obj):
+        return obj.applications.count()

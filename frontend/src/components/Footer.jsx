@@ -1,12 +1,13 @@
+import { Link } from 'react-router-dom';
 import { MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
 
 const QUICK_LINKS = [
-  'Đề án tuyển sinh 2026',
-  'Danh mục ngành đào tạo',
-  'Phương thức xét tuyển',
-  'Điểm chuẩn các năm',
-  'Học phí & Học bổng',
-  'Lịch thi & Nộp hồ sơ',
+  { label: 'Danh mục ngành đào tạo', to: '/majors' },
+  { label: 'Phương thức xét tuyển', to: '/methods' },
+  { label: 'Điểm chuẩn các năm', to: '/benchmarks' },
+  { label: 'Liên hệ & FAQ', to: '/contact' },
+  { label: 'Đăng ký hồ sơ', to: '/register' },
+  { label: 'Đăng nhập', to: '/login' },
 ];
 
 const RELATED_LINKS = [
@@ -24,38 +25,19 @@ export default function Footer() {
 
           {/* Col 1: University info */}
           <div className="col-lg-4 col-md-6">
-            <div className="d-flex align-items-center gap-3 mb-3">
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--uni-gold)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 900,
-                  fontSize: 12,
-                  color: 'var(--uni-primary-dark)',
-                  flexShrink: 0,
-                  lineHeight: 1.1,
-                  textAlign: 'center',
-                }}
-              >
-                ĐH<br/>ABC
-              </div>
+            <div className="d-flex align-items-center gap-3 mb-4">
               <div>
                 <div
                   style={{
-                    color: '#fff',
+                    color: 'var(--uni-primary)',
                     fontWeight: 800,
-                    fontSize: '0.85rem',
+                    fontSize: '1rem',
                     textTransform: 'uppercase',
                     letterSpacing: '0.3px',
                     lineHeight: 1.2,
                   }}
                 >
-                  Trường Đại học ABC
+                  ĐẠI HỌC ABC
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                   Admission Portal 2026
@@ -116,8 +98,8 @@ export default function Footer() {
           {/* Col 3: Quick links */}
           <div className="col-lg-2 col-md-6">
             <div className="pub-footer__heading">Thông tin Tuyển sinh</div>
-            {QUICK_LINKS.map((label) => (
-              <a key={label} href="#">{label}</a>
+            {QUICK_LINKS.map((link) => (
+              <Link key={link.label} to={link.to}>{link.label}</Link>
             ))}
           </div>
 
