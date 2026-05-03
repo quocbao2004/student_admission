@@ -140,6 +140,8 @@ export default function Register() {
   const [cccdStatus, setCccdStatus] = useState({ valid: null, reason: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Lỗi từng field trả về từ server (DRF format)
+  const [fieldErrors, setFieldErrors] = useState({});
   const navigate = useNavigate();
 
   const handleChange = useCallback((e) => {
@@ -151,9 +153,61 @@ export default function Register() {
     }
   }, []);
 
+  /**
+   * Parse lỗi từ Django REST Framework.
+   * DRF trả về: { "email": ["..."], "phone": ["..."] } (field errors)
+   * hoặc       { "detail": "..." } hoặc { "error": "..." } (non-field errors)
+   */
+  function parseDRFError(data) {
+    if (!data || typeof data !== 'object') {
+      return { global: 'Đăng ký không thành công. Vui lòng thử lại.', fields: {} };
+    }
+    // Non-field errors
+    if (data.detail || data.error || data.non_field_errors) {
+      return {
+        global: data.detail || data.error || (data.non_field_errors?.[0] ?? 'Lỗi không xác định.'),
+        fields: {},
+      };
+    }
+    // Field-level errors — gom thành map { fieldName: "message đầu tiên" }
+    const fields = {};
+    let firstMessage = '';
+    for (const [key, val] of Object.entries(data)) {
+      const msg = Array.isArray(val) ? val[0] : String(val);
+      // Dịch các message phổ biến
+      const translated = translateDRFMessage(key, msg);
+      fields[key] = translated;
+      if (!firstMessage) firstMessage = translated;
+    }
+    return { global: firstMessage || 'Vui lòng kiểm tra lại thông tin.', fields };
+  }
+
+  function translateDRFMessage(field, msg) {
+    const lower = msg.toLowerCase();
+    if (field === 'email') {
+      if (lower.includes('unique') || lower.includes('already') || lower.includes('exists')) {
+        return 'Email này đã được sử dụng. Vui lòng dùng email khác.';
+      }
+      if (lower.includes('valid') || lower.includes('enter a valid')) {
+        return 'Địa chỉ email không hợp lệ.';
+      }
+    }
+    if (field === 'phone') {
+      if (lower.includes('unique')) return 'Số điện thoại đã được đăng ký.';
+    }
+    if (field === 'cccd') {
+      if (lower.includes('unique')) return 'Số CCCD đã được đăng ký.';
+    }
+    if (lower.includes('blank') || lower.includes('required') || lower.includes('may not be')) {
+      return 'Trường này không được để trống.';
+    }
+    return msg;
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     // Guard: không cho submit nếu CCCD chưa hợp lệ
     const cccdCheck = validateCCCDNumber(formData.cccd);
@@ -172,10 +226,12 @@ export default function Register() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+        const parsed = parseDRFError(data);
+        setFieldErrors(parsed.fields);
+        throw new Error(parsed.global);
       }
 
-      navigate('/login');
+      navigate('/login', { state: { registered: true } });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -370,14 +426,35 @@ export default function Register() {
                           id="reg-email"
                           type="email"
                           name="email"
-                          className="form-control"
+                          className={`form-control${fieldErrors.email ? ' is-invalid' : ''}`}
                           placeholder="vidu@email.com"
                           value={formData.email}
-                          onChange={handleChange}
+                          onChange={(e) => {
+                            handleChange(e);
+                            // Xóa lỗi field khi user bắt đầu sửa
+                            if (fieldErrors.email) {
+                              setFieldErrors((prev) => ({ ...prev, email: '' }));
+                            }
+                          }}
                           required
                           autoComplete="email"
+                          aria-describedby={fieldErrors.email ? 'email-error' : undefined}
                         />
                       </div>
+                      {fieldErrors.email && (
+                        <div
+                          id="email-error"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            marginTop: 5, fontSize: '0.75rem',
+                            color: '#dc2626', fontWeight: 500,
+                          }}
+                          role="alert"
+                        >
+                          <XCircle size={13} />
+                          {fieldErrors.email}
+                        </div>
+                      )}
                     </div>
                     <div className="col-sm-6">
                       <label htmlFor="reg-phone" className="form-label">
