@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { LogIn, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { LogIn, Lock, Mail, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE } from '../../config';
 
@@ -10,6 +10,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { login } = useAuth();
+  const location = useLocation();
+  const justRegistered = location.state?.registered === true;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,6 +68,24 @@ export default function Login() {
 
               {/* Card Body */}
               <div className="auth-card__body">
+                {justRegistered && (
+                  <div
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 8,
+                      padding: '10px 14px', marginBottom: 16,
+                      background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      borderLeft: '3px solid #16a34a', borderRadius: 4,
+                      fontSize: '0.8rem', color: '#166534', lineHeight: 1.5,
+                    }}
+                    role="status"
+                  >
+                    <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>
+                      <strong>Đăng ký thành công!</strong> Vui lòng đăng nhập để tiếp tục.
+                    </span>
+                  </div>
+                )}
+
                 {error && (
                   <div className="alert alert-danger d-flex align-items-start gap-2 mb-4" role="alert">
                     <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: 1 }} />
