@@ -30,9 +30,17 @@ from .views import (
     AdminMajorWorkflowStatusView,
     CandidateAdmissionLetterDataView,
     AdminSeasonCRUDView,
+    PublicMajorsView,
+    PublicMethodsView,
+    PublicBenchmarksView,
 )
 
 urlpatterns = [
+    # Public routes (no authentication required)
+    path('public/majors/', PublicMajorsView.as_view(), name='public-majors'),
+    path('public/methods/', PublicMethodsView.as_view(), name='public-methods'),
+    path('public/benchmarks/', PublicBenchmarksView.as_view(), name='public-benchmarks'),
+
     # Candidate routes
     path('profile/me/', MyProfileView.as_view(), name='my-profile'),
     path('profile/submit/', ProfileSubmitView.as_view(), name='profile-submit'),

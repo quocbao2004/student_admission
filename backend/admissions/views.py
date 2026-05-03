@@ -734,6 +734,67 @@ class CandidateAdmissionLetterDataView(APIView):
         })
 
 
+class PublicMajorsView(APIView):
+    """Danh sách ngành đào tạo - không cần xác thực (public portal)."""
+    permission_classes = []
+
+    def get(self, request):
+        majors = Major.objects.all().order_by('code')
+        # Lấy kèm combinations qua ScoreFormula -> method -> application để gộp tổ hợp
+        # Trả về format đủ cho trang public
+        result = []
+        for major in majors:
+            # Lấy tổ hợp môn từ các nguyện vọng đã đăng ký (distinct combination codes)
+            combo_codes = list(
+                Application.objects.filter(major=major, combination__isnull=False)
+                .values_list('combination__code', flat=True)
+                .distinct()
+            )
+            result.append({
+                'id': str(major.id),
+                'code': major.code,
+                'name': major.name,
+                'quota': major.quota,
+                'description': major.description or '',
+                'combinations': combo_codes,
+            })
+        return Response(result)
+
+
+class PublicMethodsView(APIView):
+    """Danh sách phương thức xét tuyển - không cần xác thực (public portal)."""
+    permission_classes = []
+
+    def get(self, request):
+        methods = AdmissionMethod.objects.all()
+        serializer = AdmissionMethodSerializer(methods, many=True)
+        return Response(serializer.data)
+
+
+class PublicBenchmarksView(APIView):
+    """Điểm chuẩn các năm - không cần xác thực (public portal)."""
+    permission_classes = []
+
+    def get(self, request):
+        benchmarks = (
+            MajorBenchmark.objects
+            .select_related('major', 'method')
+            .all()
+            .order_by('-year', 'major__code')
+        )
+        result = []
+        for bm in benchmarks:
+            result.append({
+                'major_id': str(bm.major.id),
+                'major': bm.major.name,
+                'code': bm.major.code,
+                'method': bm.method.name,
+                'year': bm.year,
+                'score': bm.score,
+            })
+        return Response(result)
+
+
 class AdminSeasonCRUDView(APIView):
     """CRUD cho đợt xét tuyển (AdmissionSeason)."""
     permission_classes = [IsAuthenticated, IsAdminRole]
