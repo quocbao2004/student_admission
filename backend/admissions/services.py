@@ -273,6 +273,10 @@ class AdmissionService:
         if not major or not method:
             raise ValueError("Ngành hoặc Phương thức không hợp lệ.")
 
+        # Kiểm tra xem phương thức có được phép áp dụng cho ngành này không
+        if major.allowed_methods.exists() and not major.allowed_methods.filter(id=method.id).exists():
+            raise ValueError(f"Ngành {major.code} không áp dụng phương thức xét tuyển này.")
+
         # Tự động tính thứ tự ưu tiên
         priority_order = ApplicationRepository.count_by_profile(profile.id) + 1
 
@@ -303,6 +307,12 @@ class AdmissionService:
         if 'method_id' in data:
             method = AdmissionMethodRepository.get_by_id(data['method_id'])
             if method: update_data['method'] = method
+            
+        current_major = update_data.get('major', application.major)
+        current_method = update_data.get('method', application.method)
+        
+        if current_major.allowed_methods.exists() and not current_major.allowed_methods.filter(id=current_method.id).exists():
+            raise ValueError(f"Ngành {current_major.code} không áp dụng phương thức xét tuyển này.")
             
         if 'combination_id' in data:
             combination = SubjectCombinationRepository.get_by_id(data['combination_id'])

@@ -358,6 +358,32 @@ export default function Catalogs() {
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Chỉ tiêu xét tuyển <span className="text-red-500">*</span></label>
                       <input type="number" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.quota || ''} onChange={e => setFormData({...formData, quota: e.target.value})} required />
                     </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Phương thức xét tuyển áp dụng</label>
+                      <div className="space-y-2 border border-slate-200 rounded-md p-3 max-h-40 overflow-y-auto bg-white">
+                        {methods.map(method => {
+                          const isChecked = formData.allowed_methods?.includes(method.id);
+                          return (
+                            <label key={method.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 p-1 rounded">
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked} 
+                                onChange={(e) => {
+                                  const currentMethods = formData.allowed_methods || [];
+                                  if (e.target.checked) {
+                                    setFormData({ ...formData, allowed_methods: [...currentMethods, method.id] });
+                                  } else {
+                                    setFormData({ ...formData, allowed_methods: currentMethods.filter(id => id !== method.id) });
+                                  }
+                                }}
+                                className="rounded text-slate-900 focus:ring-slate-900" 
+                              />
+                              <span className="text-slate-700">{method.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 ) : activeTab === 'combinations' ? (
                   <>

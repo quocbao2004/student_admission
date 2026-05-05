@@ -268,7 +268,7 @@ export default function Aspirations() {
                     className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all"
                     required
                     value={formData.major_id}
-                    onChange={e => setFormData({ ...formData, major_id: e.target.value })}
+                    onChange={e => setFormData({ ...formData, major_id: e.target.value, method_id: '' })}
                   >
                     <option value="">Chọn ngành...</option>
                     {catalogs.majors.map(m => (
@@ -279,15 +279,27 @@ export default function Aspirations() {
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Phương thức</label>
                   <select 
-                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all"
+                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                     required
                     value={formData.method_id}
                     onChange={e => setFormData({ ...formData, method_id: e.target.value })}
+                    disabled={!formData.major_id}
                   >
-                    <option value="">Chọn phương thức...</option>
-                    {catalogs.methods.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
+                    <option value="">{formData.major_id ? 'Chọn phương thức...' : 'Vui lòng chọn ngành trước'}</option>
+                    {(() => {
+                      const selectedMajor = catalogs.majors.find(m => m.id === formData.major_id);
+                      const availableMethods = selectedMajor && selectedMajor.allowed_methods
+                        ? catalogs.methods.filter(m => selectedMajor.allowed_methods.includes(m.id))
+                        : [];
+                      
+                      if (formData.major_id && availableMethods.length === 0) {
+                        return <option value="" disabled>Ngành này chưa cấu hình phương thức xét tuyển</option>;
+                      }
+                      
+                      return availableMethods.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
                 <div>
