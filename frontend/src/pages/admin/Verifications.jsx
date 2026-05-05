@@ -72,11 +72,15 @@ export default function Verifications() {
   };
 
   // --- Workflow stepper derived state ---
-  const step1Done = selectedProfile?.payment_status === 'SUCCESS';
+  const isPaid = selectedProfile?.payment_status === 'SUCCESS';
   const totalDocs = selectedProfile?.documents?.length ?? 0;
   const verifiedDocs = selectedProfile?.documents?.filter(d => d.status === 'VERIFIED').length ?? 0;
-  const step2Done = totalDocs > 0 && verifiedDocs === totalDocs;
-  const canApprove = step1Done && step2Done;
+  
+  const step1Done = totalDocs > 0 && verifiedDocs === totalDocs; // Minh chứng
+  const step2Done = selectedProfile?.status === 'VERIFIED'; // Phê duyệt
+  const step3Done = isPaid; // Lệ phí
+
+  const canApprove = step1Done;
 
   const handleVerify = async (status) => {
     if (!selectedProfile) return;
@@ -357,40 +361,20 @@ export default function Verifications() {
                 {/* 3-Step Workflow Progress Stepper */}
                 <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-100">
                   <div className="flex items-center gap-0">
-                    {/* Step 1: Lệ phí */}
+                    {/* Step 1: Minh chứng */}
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
                         step1Done
-                          ? 'bg-[#027A48] border-[#027A48] text-white'
-                          : 'bg-white border-slate-300 text-slate-400'
-                      }`}>
-                        {step1Done ? <Check size={14}/> : '1'}
-                      </div>
-                      <div>
-                        <div className={`text-xs font-bold ${step1Done ? 'text-[#027A48]' : 'text-slate-500'}`}>Lệ phí</div>
-                        <div className="text-[10px] text-slate-400 leading-none">
-                          {step1Done ? 'Đã xác nhận' : 'Chưa nộp phí'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Connector 1-2 */}
-                    <div className={`flex-1 h-px mx-4 ${step1Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
-
-                    {/* Step 2: Minh chứng */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
-                        step2Done
                           ? 'bg-[#027A48] border-[#027A48] text-white'
                           : totalDocs > 0 && verifiedDocs > 0
                           ? 'bg-amber-400 border-amber-400 text-white'
                           : 'bg-white border-slate-300 text-slate-400'
                       }`}>
-                        {step2Done ? <Check size={14}/> : '2'}
+                        {step1Done ? <Check size={14}/> : '1'}
                       </div>
                       <div>
                         <div className={`text-xs font-bold ${
-                          step2Done ? 'text-[#027A48]' : totalDocs > 0 && verifiedDocs > 0 ? 'text-amber-600' : 'text-slate-500'
+                          step1Done ? 'text-[#027A48]' : totalDocs > 0 && verifiedDocs > 0 ? 'text-amber-600' : 'text-slate-500'
                         }`}>Minh chứng</div>
                         <div className="text-[10px] text-slate-400 leading-none">
                           {totalDocs === 0 ? 'Chưa có tài liệu' : `${verifiedDocs}/${totalDocs} đã duyệt`}
@@ -398,32 +382,52 @@ export default function Verifications() {
                       </div>
                     </div>
 
-                    {/* Connector 2-3 */}
-                    <div className={`flex-1 h-px mx-4 ${step2Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
+                    {/* Connector 1-2 */}
+                    <div className={`flex-1 h-px mx-4 ${step1Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
 
-                    {/* Step 3: Phê duyệt hồ sơ */}
+                    {/* Step 2: Phê duyệt hồ sơ */}
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
-                        selectedProfile.status === 'VERIFIED'
+                        step2Done
                           ? 'bg-[#027A48] border-[#027A48] text-white'
                           : selectedProfile.status === 'REJECTED'
                           ? 'bg-[#B42318] border-[#B42318] text-white'
                           : 'bg-white border-slate-300 text-slate-400'
                       }`}>
-                        {selectedProfile.status === 'VERIFIED' ? <Check size={14}/>
+                        {step2Done ? <Check size={14}/>
                           : selectedProfile.status === 'REJECTED' ? <X size={14}/>
-                          : '3'}
+                          : '2'}
                       </div>
                       <div>
                         <div className={`text-xs font-bold ${
-                          selectedProfile.status === 'VERIFIED' ? 'text-[#027A48]'
+                          step2Done ? 'text-[#027A48]'
                           : selectedProfile.status === 'REJECTED' ? 'text-[#B42318]'
                           : 'text-slate-500'
                         }`}>Phê duyệt</div>
                         <div className="text-[10px] text-slate-400 leading-none">
-                          {selectedProfile.status === 'VERIFIED' ? 'Hoàn thành'
+                          {step2Done ? 'Hoàn thành'
                             : selectedProfile.status === 'REJECTED' ? 'Đã từ chối'
                             : canApprove ? 'Sẵn sàng' : 'Chờ bước trên'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Connector 2-3 */}
+                    <div className={`flex-1 h-px mx-4 ${step2Done ? 'bg-[#027A48]' : 'bg-slate-200'}`}></div>
+
+                    {/* Step 3: Lệ phí */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
+                        step3Done
+                          ? 'bg-[#027A48] border-[#027A48] text-white'
+                          : 'bg-white border-slate-300 text-slate-400'
+                      }`}>
+                        {step3Done ? <Check size={14}/> : '3'}
+                      </div>
+                      <div>
+                        <div className={`text-xs font-bold ${step3Done ? 'text-[#027A48]' : 'text-slate-500'}`}>Lệ phí</div>
+                        <div className="text-[10px] text-slate-400 leading-none">
+                          {step3Done ? 'Đã xác nhận' : 'Chưa nộp phí'}
                         </div>
                       </div>
                     </div>
@@ -432,8 +436,8 @@ export default function Verifications() {
 
                 {/* Action row */}
                 <div className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  {/* Payment confirm button (Step 1 guard) */}
-                  {!step1Done && (
+                  {/* Payment confirm button (Step 3 guard) */}
+                  {step2Done && !step3Done && (
                     <button
                       onClick={handleConfirmPayment}
                       disabled={actionLoading}
@@ -477,8 +481,7 @@ export default function Verifications() {
                           </button>
                           {!canApprove && (
                             <div className="absolute bottom-full right-0 mb-2 w-56 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                              {!step1Done && '⚠ Chưa xác nhận lệ phí.'}
-                              {step1Done && !step2Done && `⚠ Còn ${totalDocs - verifiedDocs} tài liệu chưa duyệt.`}
+                              {!step1Done && `⚠ Còn ${totalDocs - verifiedDocs} tài liệu chưa duyệt.`}
                               <div className="absolute top-full right-4 border-4 border-transparent border-t-slate-900"></div>
                             </div>
                           )}
