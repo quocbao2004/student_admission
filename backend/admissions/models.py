@@ -22,6 +22,7 @@ class Major(models.Model):
     quota = models.IntegerField()
     description = models.TextField(null=True, blank=True)
     allowed_methods = models.ManyToManyField('AdmissionMethod', blank=True, related_name='majors')
+    allowed_combinations = models.ManyToManyField('SubjectCombination', blank=True, related_name='majors')
 
     class Meta:
         db_table = 'majors'

@@ -275,7 +275,7 @@ export default function Aspirations() {
                     className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all"
                     required
                     value={formData.major_id}
-                    onChange={e => setFormData({ ...formData, major_id: e.target.value, method_id: '' })}
+                    onChange={e => setFormData({ ...formData, major_id: e.target.value, method_id: '', combination_id: '' })}
                   >
                     <option value="">Chọn ngành...</option>
                     {catalogs.majors.map(m => (
@@ -312,14 +312,26 @@ export default function Aspirations() {
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tổ hợp môn</label>
                   <select 
-                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all"
+                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all disabled:bg-slate-50 disabled:text-slate-400"
                     value={formData.combination_id}
                     onChange={e => setFormData({ ...formData, combination_id: e.target.value })}
+                    disabled={!formData.major_id}
                   >
-                    <option value="">Không yêu cầu...</option>
-                    {catalogs.combinations.map(c => (
-                      <option key={c.id} value={c.id}>{c.code} - ({c.subject1}, {c.subject2}, {c.subject3})</option>
-                    ))}
+                    <option value="">{formData.major_id ? 'Không yêu cầu...' : 'Vui lòng chọn ngành trước'}</option>
+                    {(() => {
+                      const selectedMajor = catalogs.majors.find(m => m.id === formData.major_id);
+                      const availableCombs = selectedMajor && selectedMajor.allowed_combinations
+                        ? catalogs.combinations.filter(c => selectedMajor.allowed_combinations.includes(c.id))
+                        : [];
+                        
+                      if (formData.major_id && availableCombs.length === 0) {
+                        return <option value="" disabled>Ngành này chưa cấu hình tổ hợp môn</option>;
+                      }
+                      
+                      return availableCombs.map(c => (
+                        <option key={c.id} value={c.id}>{c.code} - ({c.subject1}, {c.subject2}, {c.subject3})</option>
+                      ));
+                    })()}
                   </select>
                 </div>
               </div>

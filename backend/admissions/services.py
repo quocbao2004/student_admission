@@ -293,6 +293,9 @@ class AdmissionService:
         if major.allowed_methods.exists() and not major.allowed_methods.filter(id=method.id).exists():
             raise ValueError(f"Ngành {major.code} không áp dụng phương thức xét tuyển này.")
 
+        if combination and major.allowed_combinations.exists() and not major.allowed_combinations.filter(id=combination.id).exists():
+            raise ValueError(f"Ngành {major.code} không áp dụng tổ hợp môn này.")
+
         # Tự động tính thứ tự ưu tiên
         priority_order = ApplicationRepository.count_by_profile(profile.id) + 1
 
@@ -331,8 +334,14 @@ class AdmissionService:
             raise ValueError(f"Ngành {current_major.code} không áp dụng phương thức xét tuyển này.")
             
         if 'combination_id' in data:
-            combination = SubjectCombinationRepository.get_by_id(data['combination_id'])
+            combination = None
+            if data['combination_id']:
+                combination = SubjectCombinationRepository.get_by_id(data['combination_id'])
             update_data['combination'] = combination
+            
+        current_combination = update_data.get('combination', application.combination)
+        if current_combination and current_major.allowed_combinations.exists() and not current_major.allowed_combinations.filter(id=current_combination.id).exists():
+            raise ValueError(f"Ngành {current_major.code} không áp dụng tổ hợp môn này.")
 
         return ApplicationRepository.update(application, update_data)
 

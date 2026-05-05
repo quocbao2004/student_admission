@@ -384,6 +384,32 @@ export default function Catalogs() {
                         })}
                       </div>
                     </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tổ hợp môn xét tuyển áp dụng</label>
+                      <div className="space-y-2 border border-slate-200 rounded-md p-3 max-h-40 overflow-y-auto bg-white">
+                        {combinations.map(comb => {
+                          const isChecked = formData.allowed_combinations?.includes(comb.id);
+                          return (
+                            <label key={comb.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 p-1 rounded">
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked} 
+                                onChange={(e) => {
+                                  const currentCombs = formData.allowed_combinations || [];
+                                  if (e.target.checked) {
+                                    setFormData({ ...formData, allowed_combinations: [...currentCombs, comb.id] });
+                                  } else {
+                                    setFormData({ ...formData, allowed_combinations: currentCombs.filter(id => id !== comb.id) });
+                                  }
+                                }}
+                                className="rounded text-slate-900 focus:ring-slate-900" 
+                              />
+                              <span className="text-slate-700">{comb.code} ({comb.subject1}, {comb.subject2}, {comb.subject3})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 ) : activeTab === 'combinations' ? (
                   <>
