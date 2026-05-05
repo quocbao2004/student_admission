@@ -21,6 +21,7 @@ class Major(models.Model):
     name = models.CharField(max_length=255)
     quota = models.IntegerField()
     description = models.TextField(null=True, blank=True)
+    allowed_methods = models.ManyToManyField('AdmissionMethod', blank=True, related_name='majors')
 
     class Meta:
         db_table = 'majors'
