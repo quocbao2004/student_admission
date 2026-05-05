@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, X, Search, Loader, User, FileText, AlertTriangle, Eye, ArrowLeft, CreditCard, Layers, Download, FileCheck, Target } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE, BACKEND_URL } from '../../config';
 
 export default function Verifications() {
   const { token, logout } = useAuth();
@@ -746,7 +746,7 @@ export default function Verifications() {
               </div>
               <div className="flex items-center gap-3">
                 <a 
-                  href={`http://localhost:8000${previewDoc.file_url}`} target="_blank" rel="noreferrer"
+                  href={`${BACKEND_URL}${previewDoc.file_url}`} target="_blank" rel="noreferrer"
                   className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors flex items-center gap-1.5"
                 >
                   <Download size={14}/> Tải xuống
@@ -770,13 +770,13 @@ export default function Verifications() {
                   </div>
                   <h4 className="text-base font-bold text-slate-800 mb-2">Tệp không hỗ trợ xem trước</h4>
                   <p className="text-sm text-slate-500 mb-6 truncate w-full px-4">{previewDoc.file_url.split('/').pop()}</p>
-                  <a href={`http://localhost:8000${previewDoc.file_url}`} target="_blank" rel="noreferrer" className="px-8 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-black transition-colors shadow-sm flex items-center gap-2">
+                  <a href={`${BACKEND_URL}${previewDoc.file_url}`} target="_blank" rel="noreferrer" className="px-8 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-black transition-colors shadow-sm flex items-center gap-2">
                     <Eye size={16}/> Mở tab mới để xem
                   </a>
                 </div>
               ) : (
                 <img 
-                  src={`http://localhost:8000${previewDoc.file_url}`} 
+                  src={`${BACKEND_URL}${previewDoc.file_url}`} 
                   alt={previewDoc.type}
                   className="max-w-full h-auto object-contain rounded-xl shadow-md border border-slate-200 bg-white"
                   style={{ maxHeight: 'calc(90vh - 150px)' }}

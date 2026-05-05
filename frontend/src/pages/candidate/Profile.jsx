@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Upload, Save, FileText, CheckCircle, AlertTriangle, Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdmissionFlow } from '../../contexts/AdmissionFlowContext';
-import { API_BASE, DOCUMENT_TYPE_LABELS } from '../../config';
+import { API_BASE, BACKEND_URL, DOCUMENT_TYPE_LABELS } from '../../config';
 import ScoreVerificationFlow from '../../components/ScoreVerificationFlow';
 
 // -------------------------------------------------------------------
@@ -605,7 +605,7 @@ export default function Profile() {
                         <tr key={doc.id}>
                           <td className="small fw-medium">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</td>
                           <td>
-                            <a href={`http://localhost:8000${doc.file_url}`} target="_blank" rel="noreferrer" className="small text-decoration-none">
+<a href={`${BACKEND_URL}${doc.file_url}`} target="_blank" rel="noreferrer" className="small text-decoration-none">
                               <FileText size={14} className="me-1" />Xem tài liệu
                             </a>
                           </td>

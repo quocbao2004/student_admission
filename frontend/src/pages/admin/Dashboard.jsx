@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, FileCheck, Clock, DollarSign, ArrowUpRight, Activity, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../../config';
 
 export default function AdminDashboard() {
   const { token, logout } = useAuth();

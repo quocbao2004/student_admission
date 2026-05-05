@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, BookOpen, GraduationCap, Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../../config';
 
 // Helper to generate stable mock variance for demo purposes
 const getVariance = (code) => {

@@ -3,7 +3,7 @@ import { CreditCard, CheckCircle, AlertCircle, Loader, ExternalLink, Info } from
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdmissionFlow } from '../../contexts/AdmissionFlowContext';
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../../config';
 
 export default function Payment() {
   const { token, logout } = useAuth();

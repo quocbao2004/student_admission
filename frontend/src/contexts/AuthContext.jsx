@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../config';
 
-const API_BASE = 'http://localhost:8000/api';
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
