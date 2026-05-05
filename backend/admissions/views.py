@@ -264,7 +264,8 @@ class CatalogListView(APIView):
         return Response({
             "majors": MajorSerializer(catalogs["majors"], many=True).data,
             "methods": AdmissionMethodSerializer(catalogs["methods"], many=True).data,
-            "combinations": SubjectCombinationSerializer(catalogs["combinations"], many=True).data
+            "combinations": SubjectCombinationSerializer(catalogs["combinations"], many=True).data,
+            "active_season": catalogs.get("active_season")
         })
 
 class ApplicationListView(APIView):

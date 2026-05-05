@@ -137,7 +137,7 @@ export default function Aspirations() {
           <h2 className="text-2xl font-semibold tracking-tight">Đăng ký nguyện vọng</h2>
           <p className="text-slate-500 text-sm mt-1">Bạn có thể đăng ký tối đa 3 nguyện vọng xét tuyển.</p>
         </div>
-        {!isLocked && applications.length < 3 && (
+        {!isLocked && applications.length < 3 && catalogs.active_season && (
           <button 
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-all shadow-sm"
             onClick={handleOpenAdd}
@@ -158,6 +158,13 @@ export default function Aspirations() {
         <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-md flex items-center gap-3 text-sm text-slate-600 italic">
           <Info size={18} className="text-slate-400" />
           Danh sách nguyện vọng đã được khóa sau khi thanh toán lệ phí.
+        </div>
+      )}
+
+      {!catalogs.active_season && (
+        <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-md flex items-center gap-3 text-sm text-yellow-800">
+          <AlertCircle size={18} className="text-yellow-600" />
+          Hiện tại không có đợt tuyển sinh nào đang mở đăng ký. Bạn không thể thêm hoặc sửa nguyện vọng lúc này.
         </div>
       )}
 
@@ -197,7 +204,7 @@ export default function Aspirations() {
                       </div>
                     </div>
 
-                    {!isLocked && !isPublished && (
+                    {!isLocked && !isPublished && catalogs.active_season && (
                       <div className="flex gap-1">
                         <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-all" onClick={() => handleOpenEdit(app)}>
                           <Edit2 size={16} />
