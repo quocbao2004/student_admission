@@ -142,8 +142,17 @@ export default function Formulas() {
         })
       });
       if (res.ok) {
+        const data = await res.json();
         alert('Đã cập nhật công thức thành công!');
-        fetchData();
+        setFormulas(prev => {
+          const existingIndex = prev.findIndex(f => f.id === data.id || f.method === data.method);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = data;
+            return next;
+          }
+          return [...prev, data];
+        });
       }
     } catch (err) { alert('Lỗi: ' + err.message); }
     finally { setSaving(false); }
