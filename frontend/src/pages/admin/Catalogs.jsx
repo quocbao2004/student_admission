@@ -7,6 +7,7 @@ export default function Catalogs() {
   const { token, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('majors');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   // Data
   const [majors, setMajors] = useState([]);
@@ -79,6 +80,7 @@ export default function Catalogs() {
     }
     
     try {
+      setSaving(true);
       const res = await authFetch(url, {
         method: editingItem ? 'PUT' : 'POST',
         body: JSON.stringify(formData)
@@ -90,6 +92,9 @@ export default function Catalogs() {
         setEditingItem(null);
       }
     } catch (err) { console.error(err); }
+    finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -354,8 +359,8 @@ export default function Catalogs() {
               </div>
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-all">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-all shadow-sm">
-                  Lưu dữ liệu
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-slate-900 text-white rounded-md text-sm font-medium hover:bg-slate-800 transition-all shadow-sm disabled:opacity-50">
+                  {saving ? 'Đang lưu...' : 'Lưu dữ liệu'}
                 </button>
               </div>
             </form>
