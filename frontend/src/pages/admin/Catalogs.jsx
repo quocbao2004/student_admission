@@ -86,10 +86,20 @@ export default function Catalogs() {
         body: JSON.stringify(formData)
       });
       if (res.ok) {
+        const data = await res.json();
+        if (activeTab === 'majors') {
+          setMajors(prev => editingItem ? prev.map(m => m.id === data.id ? data : m) : [...prev, data]);
+        } else if (activeTab === 'combinations') {
+          setCombinations(prev => editingItem ? prev.map(c => c.id === data.id ? data : c) : [...prev, data]);
+        } else if (activeTab === 'benchmarks') {
+          setBenchmarks(prev => editingItem ? prev.map(b => b.id === data.id ? data : b) : [...prev, data]);
+        }
         setIsModalOpen(false);
-        fetchData();
         setFormData({});
         setEditingItem(null);
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Có lỗi xảy ra!');
       }
     } catch (err) { console.error(err); }
     finally {
@@ -106,7 +116,11 @@ export default function Catalogs() {
     
     try {
       const res = await authFetch(url, { method: 'DELETE' });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        if (activeTab === 'majors') setMajors(prev => prev.filter(m => m.id !== id));
+        else if (activeTab === 'combinations') setCombinations(prev => prev.filter(c => c.id !== id));
+        else if (activeTab === 'benchmarks') setBenchmarks(prev => prev.filter(b => b.id !== id));
+      }
     } catch (err) { console.error(err); }
   };
 
