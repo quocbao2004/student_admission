@@ -210,6 +210,12 @@ export default function Register() {
     setError(null);
     setFieldErrors({});
 
+    // Guard: kiểm tra các trường bắt buộc
+    if (!formData.full_name || !formData.email || !formData.phone || !formData.password) {
+      setError('Vui lòng điền đầy đủ tất cả các trường bắt buộc (Họ tên, Email, Số điện thoại, Mật khẩu).');
+      return;
+    }
+
     // Guard: không cho submit nếu CCCD chưa hợp lệ
     const cccdCheck = validateCCCDNumber(formData.cccd);
     if (!cccdCheck.valid) {

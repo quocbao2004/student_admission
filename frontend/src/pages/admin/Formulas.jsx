@@ -72,7 +72,13 @@ const FormulaItem = ({ method, existingFormula, onSave, savingGlobal }) => {
           <button 
             className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-lg hover:shadow-slate-200 disabled:opacity-50"
             disabled={savingGlobal}
-            onClick={() => onSave(method.id, formula, existingFormula?.id)}
+            onClick={() => {
+              if (!formula.trim()) {
+                alert('Vui lòng nhập công thức (không được để trống) trước khi lưu!');
+                return;
+              }
+              onSave(method.id, formula, existingFormula?.id);
+            }}
           >
             {savingGlobal ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
             Lưu thay đổi
@@ -121,6 +127,10 @@ export default function Formulas() {
   }, []);
 
   const handleUpdateFormula = async (methodId, formulaText, existingId) => {
+    if (!formulaText.trim()) {
+      alert('Công thức không được để trống!');
+      return;
+    }
     try {
       setSaving(true);
       const url = existingId ? `${API_BASE}/admissions/admin/formulas/${existingId}/` : `${API_BASE}/admissions/admin/formulas/`;

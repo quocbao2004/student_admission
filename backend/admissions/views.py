@@ -106,14 +106,17 @@ class AdminProfileSerializer(serializers.ModelSerializer):
         fields = '__all__'
     
     def get_scores(self, obj):
-        from .models import Score
-        scores = Score.objects.filter(profile=obj)
+        # Tận dụng prefetch_related cache thay vì query DB
+        scores = obj.scores.all()
         return {s.subject: s.score for s in scores}
     
     def get_payment_status(self, obj):
-        from .models import Payment
-        payment = Payment.objects.filter(user=obj.user, status='SUCCESS').first()
-        return 'SUCCESS' if payment else 'PENDING'
+        # Tận dụng prefetch_related cache từ user.payments
+        payments = obj.user.payments.all()
+        for p in payments:
+            if p.status == 'SUCCESS':
+                return 'SUCCESS'
+        return 'PENDING'
 
     def get_workflow_history(self, obj):
         logs = ProfileWorkflowLog.objects.filter(profile=obj).select_related('actor').order_by('-created_at')[:20]
@@ -354,7 +357,14 @@ class AdminProfileListView(APIView):
     def get(self, request):
         status_filter = request.query_params.get('status', None)
         year_filter = request.query_params.get('year', None)
-        profiles = Profile.objects.all().order_by('-created_at')
+        profiles = Profile.objects.select_related('user').prefetch_related(
+            'documents',
+            'applications__major',
+            'applications__method',
+            'applications__combination',
+            'scores',
+            'user__payments',
+        ).all().order_by('-created_at')
         if year_filter:
             profiles = profiles.filter(created_at__year=int(year_filter))
         if status_filter:
@@ -368,7 +378,14 @@ class AdminProfileDetailView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request, profile_id):
-        profile = Profile.objects.filter(id=profile_id).first()
+        profile = Profile.objects.select_related('user').prefetch_related(
+            'documents',
+            'applications__major',
+            'applications__method',
+            'applications__combination',
+            'scores',
+            'user__payments',
+        ).filter(id=profile_id).first()
         if not profile:
             return Response({"error": "Không tìm thấy hồ sơ"}, status=status.HTTP_404_NOT_FOUND)
         return Response(AdminProfileSerializer(profile).data)
@@ -739,17 +756,14 @@ class PublicMajorsView(APIView):
     permission_classes = []
 
     def get(self, request):
-        majors = Major.objects.all().order_by('code')
-        # Lấy kèm combinations qua ScoreFormula -> method -> application để gộp tổ hợp
-        # Trả về format đủ cho trang public
+        from django.db.models import Prefetch
+        majors = Major.objects.prefetch_related(
+            Prefetch('application_set', queryset=Application.objects.select_related('combination').filter(combination__isnull=False))
+        ).all().order_by('code')
+        
         result = []
         for major in majors:
-            # Lấy tổ hợp môn từ các nguyện vọng đã đăng ký (distinct combination codes)
-            combo_codes = list(
-                Application.objects.filter(major=major, combination__isnull=False)
-                .values_list('combination__code', flat=True)
-                .distinct()
-            )
+            combo_codes = list(set([app.combination.code for app in major.application_set.all()]))
             result.append({
                 'id': str(major.id),
                 'code': major.code,
