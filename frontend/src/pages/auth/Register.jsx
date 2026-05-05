@@ -1,71 +1,572 @@
-import { Link } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, CheckCircle2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  UserPlus, Mail, Lock, User, CreditCard, Phone,
+  ShieldCheck, Info, CheckCircle2, XCircle, AlertCircle,
+} from 'lucide-react';
+import { API_BASE } from '../../config';
 
-export default function Register() {
+const API_REGISTER = `${API_BASE}/accounts/register/`;
+
+// -------------------------------------------------------------------
+// Danh sách mã tỉnh/thành phố hợp lệ (3 chữ số đầu của CCCD 11 số)
+// Format CCCD 11 số: [3 số mã tỉnh][1 số giới tính+thế kỷ][2 số năm sinh][5 số thứ tự]
+// -------------------------------------------------------------------
+const VALID_PROVINCE_CODES = new Set([
+  '001','002','004','006','008','010','011','012','014','015',
+  '017','019','020','022','024','025','026','027','030','031',
+  '033','034','035','036','037','038','040','042','044','045',
+  '046','048','049','051','052','054','056','058','060','062',
+  '064','066','067','068','070','072','074','075','077','079',
+  '080','082','083','084','086','087','089','091','092','093',
+  '094','095','096',
+]);
+
+/**
+ * Kiểm tra tính hợp lệ của số CCCD 11 chữ số (Việt Nam).
+ * Trả về object: { valid: boolean, reason: string }
+ */
+function validateCCCDNumber(value) {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return { valid: null, reason: '' };
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return { valid: false, reason: 'Chỉ được nhập chữ số (0–9).' };
+  }
+  if (trimmed.length < 11) {
+    return { valid: false, reason: `Cần thêm ${11 - trimmed.length} chữ số nữa.` };
+  }
+  if (trimmed.length > 11) {
+    return { valid: false, reason: 'Vượt quá 11 chữ số.' };
+  }
+
+  const provinceCode = trimmed.slice(0, 3);
+  if (!VALID_PROVINCE_CODES.has(provinceCode)) {
+    return { valid: false, reason: `Mã tỉnh/thành "${provinceCode}" không hợp lệ.` };
+  }
+
+  const genderCenturyDigit = parseInt(trimmed[3], 10);
+  if (genderCenturyDigit < 0 || genderCenturyDigit > 3) {
+    return { valid: false, reason: 'Chữ số thứ 4 phải từ 0–3 (mã giới tính & thế kỷ).' };
+  }
+
+  return { valid: true, reason: 'Số CCCD hợp lệ.' };
+}
+
+// -------------------------------------------------------------------
+// Các trường form thông thường (không phải CCCD)
+// -------------------------------------------------------------------
+const STANDARD_FIELDS = [
+  {
+    name: 'full_name',
+    label: 'Họ và tên thí sinh',
+    type: 'text',
+    placeholder: 'Nguyễn Văn A',
+    icon: <User size={16} />,
+    col: 'col-sm-6',
+    required: true,
+  },
+  {
+    name: 'email',
+    label: 'Email (Tên đăng nhập)',
+    type: 'email',
+    placeholder: 'vidu@email.com',
+    icon: <Mail size={16} />,
+    col: 'col-sm-6',
+    required: true,
+  },
+  {
+    name: 'phone',
+    label: 'Số điện thoại',
+    type: 'tel',
+    placeholder: '0901234567',
+    icon: <Phone size={16} />,
+    col: 'col-sm-6',
+    required: true,
+    maxLength: 10,
+    minLength: 10,
+    pattern: '^0[35789]\\d{8}$',
+    title: 'Số điện thoại phải 10 số và đúng đầu mạng VN.',
+  },
+];
+
+// -------------------------------------------------------------------
+// Component badge trạng thái CCCD
+// -------------------------------------------------------------------
+function CccdStatusBadge({ status }) {
+  if (status.valid === null) return null;
+
+  const config = status.valid
+    ? { icon: <CheckCircle2 size={13} />, color: '#166534', bg: '#dcfce7', border: '#bbf7d0' }
+    : { icon: <XCircle size={13} />, color: '#991b1b', bg: '#fef2f2', border: '#fecaca' };
+
   return (
-    <div className="container py-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-sm border-0">
-            <div className="card-header bg-white text-center py-4 border-bottom-0 pb-0">
-              <div className="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3 text-danger" style={{ width: '64px', height: '64px' }}>
-                <UserPlus size={32} />
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 6,
+        padding: '4px 10px',
+        borderRadius: '3px',
+        backgroundColor: config.bg,
+        border: `1px solid ${config.border}`,
+        color: config.color,
+        fontSize: '0.75rem',
+        fontWeight: 500,
+        lineHeight: 1.4,
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      {config.icon}
+      <span>{status.reason}</span>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------
+// Main component
+// -------------------------------------------------------------------
+export default function Register() {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    cccd: '',
+    email: '',
+    phone: '',
+    password: '',
+  });
+  const [cccdStatus, setCccdStatus] = useState({ valid: null, reason: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  // Lỗi từng field trả về từ server (DRF format)
+  const [fieldErrors, setFieldErrors] = useState({});
+  const navigate = useNavigate();
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'cccd') {
+      setCccdStatus(validateCCCDNumber(value));
+    }
+  }, []);
+
+  /**
+   * Parse lỗi từ Django REST Framework.
+   * DRF trả về: { "email": ["..."], "phone": ["..."] } (field errors)
+   * hoặc       { "detail": "..." } hoặc { "error": "..." } (non-field errors)
+   */
+  function parseDRFError(data) {
+    if (!data || typeof data !== 'object') {
+      return { global: 'Đăng ký không thành công. Vui lòng thử lại.', fields: {} };
+    }
+    // Non-field errors
+    if (data.detail || data.error || data.non_field_errors) {
+      return {
+        global: data.detail || data.error || (data.non_field_errors?.[0] ?? 'Lỗi không xác định.'),
+        fields: {},
+      };
+    }
+    // Field-level errors — gom thành map { fieldName: "message đầu tiên" }
+    const fields = {};
+    let firstMessage = '';
+    for (const [key, val] of Object.entries(data)) {
+      const msg = Array.isArray(val) ? val[0] : String(val);
+      // Dịch các message phổ biến
+      const translated = translateDRFMessage(key, msg);
+      fields[key] = translated;
+      if (!firstMessage) firstMessage = translated;
+    }
+    return { global: firstMessage || 'Vui lòng kiểm tra lại thông tin.', fields };
+  }
+
+  function translateDRFMessage(field, msg) {
+    const lower = msg.toLowerCase();
+    if (field === 'email') {
+      if (lower.includes('unique') || lower.includes('already') || lower.includes('exists')) {
+        return 'Email này đã được sử dụng. Vui lòng dùng email khác.';
+      }
+      if (lower.includes('valid') || lower.includes('enter a valid')) {
+        return 'Địa chỉ email không hợp lệ.';
+      }
+    }
+    if (field === 'phone') {
+      if (lower.includes('unique')) return 'Số điện thoại đã được đăng ký.';
+    }
+    if (field === 'cccd') {
+      if (lower.includes('unique')) return 'Số CCCD đã được đăng ký.';
+    }
+    if (lower.includes('blank') || lower.includes('required') || lower.includes('may not be')) {
+      return 'Trường này không được để trống.';
+    }
+    return msg;
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setFieldErrors({});
+
+    // Guard: không cho submit nếu CCCD chưa hợp lệ
+    const cccdCheck = validateCCCDNumber(formData.cccd);
+    if (!cccdCheck.valid) {
+      setCccdStatus(cccdCheck);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(API_REGISTER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        const parsed = parseDRFError(data);
+        setFieldErrors(parsed.fields);
+        throw new Error(parsed.global);
+      }
+
+      navigate('/login', { state: { registered: true } });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Border color cho input CCCD
+  const cccdBorderColor =
+    cccdStatus.valid === true
+      ? '#16a34a'
+      : cccdStatus.valid === false
+      ? '#dc2626'
+      : undefined;
+
+  return (
+    <div className="auth-page" style={{ alignItems: 'flex-start', paddingTop: 32 }}>
+      <div className="container">
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" style={{ marginBottom: 24 }}>
+          <ol className="breadcrumb" style={{ fontSize: '0.8rem' }}>
+            <li className="breadcrumb-item">
+              <Link to="/" style={{ color: 'var(--uni-primary)' }}>Trang chủ</Link>
+            </li>
+            <li className="breadcrumb-item active" aria-current="page">Đăng ký hồ sơ</li>
+          </ol>
+        </nav>
+
+        <div className="row justify-content-center">
+          <div className="col-md-8 col-lg-6">
+            <div className="auth-card">
+              {/* Card Header */}
+              <div className="auth-card__header">
+                <div className="auth-card__header-icon">
+                  <UserPlus size={22} color="rgba(255,255,255,0.9)" />
+                </div>
+                <div>
+                  <div className="auth-card__title">Đăng ký hồ sơ Thí sinh</div>
+                  <div className="auth-card__subtitle">
+                    Cổng Tuyển sinh &bull; Đại học ABC &bull; Năm học 2026
+                  </div>
+                </div>
               </div>
-              <h4 className="fw-bold mb-1">Đăng ký Hồ sơ</h4>
-              <p className="text-muted small">Khởi tạo tài khoản Thí sinh xét tuyển 2026</p>
+
+              {/* Card Body */}
+              <div className="auth-card__body">
+                {/* Instruction notice */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 10,
+                    padding: '10px 14px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderLeft: '3px solid var(--uni-primary)',
+                    borderRadius: '4px',
+                    marginBottom: 20,
+                    fontSize: '0.8rem',
+                    color: '#1e40af',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>
+                    Vui lòng nhập đúng thông tin cá nhân theo <strong>CMND/CCCD</strong>. Thông tin này sẽ được sử dụng xuyên suốt quá trình xét tuyển.
+                  </span>
+                </div>
+
+                {error && (
+                  <div className="alert alert-danger d-flex align-items-start gap-2 mb-4" role="alert">
+                    <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} noValidate>
+                  {/* Row 1: Họ tên + CCCD (tách riêng để có thể render CCCD validator) */}
+                  <div className="row g-3 mb-3">
+                    {/* Họ và tên */}
+                    <div className="col-sm-6">
+                      <label htmlFor="reg-full_name" className="form-label">
+                        Họ và tên thí sinh
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text"><User size={16} /></span>
+                        <input
+                          id="reg-full_name"
+                          type="text"
+                          name="full_name"
+                          className="form-control"
+                          placeholder="Nguyễn Văn A"
+                          value={formData.full_name}
+                          onChange={handleChange}
+                          required
+                          autoComplete="name"
+                        />
+                      </div>
+                    </div>
+
+                    {/* CCCD — có validator riêng */}
+                    <div className="col-sm-6">
+                      <label htmlFor="reg-cccd" className="form-label">
+                        Số CMND / CCCD
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text">
+                          <CreditCard size={16} />
+                        </span>
+                        <input
+                          id="reg-cccd"
+                          type="text"
+                          name="cccd"
+                          className="form-control"
+                          placeholder="01234567890"
+                          value={formData.cccd}
+                          onChange={handleChange}
+                          required
+                          maxLength={11}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          style={cccdBorderColor ? { borderColor: cccdBorderColor } : undefined}
+                          aria-describedby="cccd-status"
+                        />
+                        {/* Trailing icon trạng thái */}
+                        {cccdStatus.valid !== null && (
+                          <span
+                            className="input-group-text"
+                            style={{
+                              backgroundColor: cccdStatus.valid ? '#dcfce7' : '#fef2f2',
+                              borderColor: cccdStatus.valid ? '#16a34a' : '#dc2626',
+                              color: cccdStatus.valid ? '#16a34a' : '#dc2626',
+                            }}
+                          >
+                            {cccdStatus.valid
+                              ? <CheckCircle2 size={16} />
+                              : <XCircle size={16} />
+                            }
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Feedback message */}
+                      <div id="cccd-status">
+                        <CccdStatusBadge status={cccdStatus} />
+                      </div>
+
+                      {/* Progress bar (chỉ hiển thị khi đang nhập, chưa đủ 11 số) */}
+                      {cccdStatus.valid === false && formData.cccd.length > 0 && formData.cccd.length < 11 && (
+                        <div style={{ marginTop: 6 }}>
+                          <div
+                            style={{
+                              height: 3,
+                              backgroundColor: '#fee2e2',
+                              borderRadius: 2,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${(formData.cccd.length / 11) * 100}%`,
+                                backgroundColor: formData.cccd.length >= 8 ? '#f59e0b' : '#ef4444',
+                                borderRadius: 2,
+                                transition: 'width 0.15s ease',
+                              }}
+                            />
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'var(--text-muted)',
+                              marginTop: 3,
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formData.cccd.length}/11 chữ số
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 2: Email + SĐT */}
+                  <div className="row g-3 mb-3">
+                    <div className="col-sm-6">
+                      <label htmlFor="reg-email" className="form-label">
+                        Email (Tên đăng nhập)
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text"><Mail size={16} /></span>
+                        <input
+                          id="reg-email"
+                          type="email"
+                          name="email"
+                          className={`form-control${fieldErrors.email ? ' is-invalid' : ''}`}
+                          placeholder="vidu@email.com"
+                          value={formData.email}
+                          onChange={(e) => {
+                            handleChange(e);
+                            // Xóa lỗi field khi user bắt đầu sửa
+                            if (fieldErrors.email) {
+                              setFieldErrors((prev) => ({ ...prev, email: '' }));
+                            }
+                          }}
+                          required
+                          autoComplete="email"
+                          aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                        />
+                      </div>
+                      {fieldErrors.email && (
+                        <div
+                          id="email-error"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            marginTop: 5, fontSize: '0.75rem',
+                            color: '#dc2626', fontWeight: 500,
+                          }}
+                          role="alert"
+                        >
+                          <XCircle size={13} />
+                          {fieldErrors.email}
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-sm-6">
+                      <label htmlFor="reg-phone" className="form-label">
+                        Số điện thoại
+                      </label>
+                      <div className="input-group">
+                        <span className="input-group-text"><Phone size={16} /></span>
+                        <input
+                          id="reg-phone"
+                          type="tel"
+                          name="phone"
+                          className="form-control"
+                          placeholder="0901234567"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          required
+                          maxLength={10}
+                          minLength={10}
+                          pattern="^0[35789]\d{8}$"
+                          title="Số điện thoại phải 10 số và đúng đầu mạng VN."
+                          autoComplete="tel"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div className="mb-4">
+                    <label htmlFor="reg-password" className="form-label">
+                      Tạo mật khẩu
+                    </label>
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <Lock size={16} />
+                      </span>
+                      <input
+                        id="reg-password"
+                        type="password"
+                        name="password"
+                        className="form-control"
+                        placeholder="Ít nhất 8 ký tự"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                      Mật khẩu tối thiểu 8 ký tự, nên có chữ hoa, số và ký tự đặc biệt.
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    id="btn-register-submit"
+                    disabled={loading || cccdStatus.valid === false}
+                    className="btn btn-danger w-100 d-flex align-items-center justify-content-center gap-2"
+                    style={{ padding: '10px' }}
+                  >
+                    {loading ? (
+                      <span>Đang xử lý...</span>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        Tạo tài khoản Thí sinh
+                      </>
+                    )}
+                  </button>
+
+                  <div
+                    style={{
+                      marginTop: 16,
+                      paddingTop: 14,
+                      borderTop: '1px solid var(--border-default)',
+                      textAlign: 'center',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Đã có tài khoản?</span>{' '}
+                    <Link to="/login" style={{ fontWeight: 700, color: 'var(--uni-primary)' }}>
+                      Đăng nhập
+                    </Link>
+                  </div>
+                </form>
+              </div>
             </div>
-            
-            <div className="card-body p-4 p-md-5 pt-0">
-              <form>
-                <div className="row g-3 mb-3">
-                  <div className="col-sm-6">
-                    <label className="form-label fw-medium small">Họ và tên thí sinh</label>
-                    <div className="input-group">
-                      <span className="input-group-text bg-light border-end-0"><User size={18} className="text-muted"/></span>
-                      <input type="text" className="form-control border-start-0 ps-0" placeholder="Nguyễn Văn A" />
-                    </div>
-                  </div>
-                  <div className="col-sm-6">
-                    <label className="form-label fw-medium small">Số CMND / CCCD</label>
-                    <div className="input-group">
-                      <span className="input-group-text bg-light border-end-0"><CheckCircle2 size={18} className="text-muted"/></span>
-                      <input type="text" className="form-control border-start-0 ps-0" placeholder="00120300..." />
-                    </div>
-                  </div>
-                </div>
 
-                <div className="mb-3">
-                  <label className="form-label fw-medium small">Email (Sử dụng để nhận thông báo)</label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-light border-end-0"><Mail size={18} className="text-muted"/></span>
-                    <input type="email" className="form-control border-start-0 ps-0" placeholder="vidu@email.com" />
-                  </div>
-                </div>
-                
-                <div className="mb-4">
-                  <label className="form-label fw-medium small mb-1">Tạo mật khẩu</label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-light border-end-0"><Lock size={18} className="text-muted"/></span>
-                    <input type="password" className="form-control border-start-0 ps-0" placeholder="Ít nhất 8 ký tự" />
-                  </div>
-                </div>
-
-                <div className="mb-4 form-check">
-                  <input className="form-check-input" type="checkbox" id="flexCheckDefault" />
-                  <label className="form-check-label small text-muted" htmlFor="flexCheckDefault">
-                    Tôi cam kết các thông tin đăng ký ở trên là hoàn toàn chính xác.
-                  </label>
-                </div>
-                
-                <button type="button" className="btn btn-danger w-100 py-2 fw-bold mb-3 d-flex align-items-center justify-content-center gap-2">
-                  <UserPlus size={18} /> Đồng ý và Tạo tài khoản
-                </button>
-                
-                <div className="text-center small mt-4">
-                  <span className="text-muted">Đã có tài khoản chưa? </span>
-                  <Link to="/login" className="fw-bold">Đăng nhập</Link>
-                </div>
-              </form>
+            {/* Policy note */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: '10px 14px',
+                background: '#fff',
+                border: '1px solid var(--border-default)',
+                borderLeft: '3px solid var(--uni-gold)',
+                borderRadius: '4px',
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+              }}
+            >
+              Khi đăng ký, bạn đồng ý với{' '}
+              <a href="#" style={{ color: 'var(--uni-primary)', fontWeight: 600 }}>
+                Điều khoản sử dụng
+              </a>{' '}
+              và{' '}
+              <a href="#" style={{ color: 'var(--uni-primary)', fontWeight: 600 }}>
+                Chính sách bảo mật
+              </a>{' '}
+              của Trường Đại học ABC.
             </div>
           </div>
         </div>

@@ -49,6 +49,7 @@ class Profile(models.Model):
     priority_area = models.CharField(max_length=10, null=True, blank=True)
     priority_object = models.CharField(max_length=10, null=True, blank=True)
     status = models.CharField(max_length=20, default='PENDING') # PENDING / VERIFIED / REJECTED
+    rejection_reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
