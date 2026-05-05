@@ -12,7 +12,7 @@ class Document(models.Model):
 
     class Meta:
         db_table = 'documents'
-        managed = False
+        
 
 
 class Major(models.Model):
@@ -24,7 +24,7 @@ class Major(models.Model):
 
     class Meta:
         db_table = 'majors'
-        managed = False
+        
 
 
 class SubjectCombination(models.Model):
@@ -36,7 +36,7 @@ class SubjectCombination(models.Model):
 
     class Meta:
         db_table = 'subject_combinations'
-        managed = False
+        
 
 
 class AdmissionMethod(models.Model):
@@ -46,7 +46,7 @@ class AdmissionMethod(models.Model):
 
     class Meta:
         db_table = 'admission_methods'
-        managed = False
+        
 
 
 class ScoreFormula(models.Model):
@@ -56,7 +56,7 @@ class ScoreFormula(models.Model):
 
     class Meta:
         db_table = 'score_formulas'
-        managed = False
+        
 
 
 class Score(models.Model):
@@ -67,7 +67,7 @@ class Score(models.Model):
 
     class Meta:
         db_table = 'scores'
-        managed = False
+        
 
 
 class AdmissionSeason(models.Model):
@@ -111,7 +111,7 @@ class Application(models.Model):
 
     class Meta:
         db_table = 'applications'
-        managed = False
+        
 
 
 class AdmissionResult(models.Model):
@@ -124,7 +124,7 @@ class AdmissionResult(models.Model):
 
     class Meta:
         db_table = 'admission_results'
-        managed = False
+        
 
 
 class Payment(models.Model):
@@ -144,7 +144,7 @@ class Payment(models.Model):
 
     class Meta:
         db_table = 'payments'
-        managed = False
+        
 
 
 class MajorBenchmark(models.Model):
@@ -157,7 +157,7 @@ class MajorBenchmark(models.Model):
 
     class Meta:
         db_table = 'major_benchmarks'
-        managed = False
+        
 
     def __str__(self):
         return f"{self.major.name} ({self.year}): {self.score}"

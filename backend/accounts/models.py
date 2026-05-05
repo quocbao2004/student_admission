@@ -34,7 +34,6 @@ class User(AbstractBaseUser):
 
     class Meta:
         db_table = 'users'
-        managed = False
 
     def __str__(self):
         return self.email
@@ -54,7 +53,6 @@ class Profile(models.Model):
 
     class Meta:
         db_table = 'profiles'
-        managed = False
 
     def __str__(self):
         return f"Profile of {self.user.email}"
