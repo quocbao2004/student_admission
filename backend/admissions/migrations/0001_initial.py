@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'admission_methods',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'admission_results',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'applications',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'documents',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'majors',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'payments',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -109,7 +109,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'scores',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'score_formulas',
-                'managed': False,
+                
             },
         ),
         migrations.CreateModel(
@@ -134,7 +134,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'subject_combinations',
-                'managed': False,
+                
             },
         ),
     ]
