@@ -507,6 +507,10 @@ class AdminCombinationCRUDView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        code = request.data.get('code')
+        if code and SubjectCombination.objects.filter(code=code).exists():
+            return Response({"error": "Tổ hợp với mã này đã tồn tại!"}, status=status.HTTP_400_BAD_REQUEST)
+            
         serializer = SubjectCombinationCRUDSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
