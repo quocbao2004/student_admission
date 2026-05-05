@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'users',
-                'managed': False,
+                'db_table': 'users',
             },
         ),
         migrations.CreateModel(
@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'profiles',
-                'managed': False,
+                'db_table': 'profiles',
             },
         ),
     ]

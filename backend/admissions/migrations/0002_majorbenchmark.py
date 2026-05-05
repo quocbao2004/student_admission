@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'major_benchmarks',
-                'managed': False,
+                
             },
         ),
     ]
