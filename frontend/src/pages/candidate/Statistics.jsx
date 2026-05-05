@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Search, TrendingUp, Users, BarChart3, Info, ChevronRight, Activity, ArrowUpDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../../config';
+
 
 export default function Statistics() {
   const { token, logout } = useAuth();

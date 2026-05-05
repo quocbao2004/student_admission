@@ -4,8 +4,9 @@ import {
   UserPlus, Mail, Lock, User, CreditCard, Phone,
   ShieldCheck, Info, CheckCircle2, XCircle, AlertCircle,
 } from 'lucide-react';
+import { API_BASE } from '../../config';
 
-const API_REGISTER = 'http://localhost:8000/api/accounts/register/';
+const API_REGISTER = `${API_BASE}/accounts/register/`;
 
 // -------------------------------------------------------------------
 // Danh sách mã tỉnh/thành phố hợp lệ (3 chữ số đầu của CCCD 11 số)
