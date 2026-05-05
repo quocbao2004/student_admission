@@ -234,15 +234,31 @@ class DocumentService:
 class CatalogService:
     @staticmethod
     def get_all_catalogs():
+        from .models import AdmissionSeason
+        active_season = AdmissionSeason.objects.filter(is_active=True, status='OPEN').first()
+        season_data = None
+        if active_season:
+            season_data = {
+                "id": str(active_season.id),
+                "name": active_season.name,
+                "year": active_season.year,
+                "round_number": active_season.round_number
+            }
         return {
             "majors": MajorRepository.get_all(),
             "methods": AdmissionMethodRepository.get_all(),
-            "combinations": SubjectCombinationRepository.get_all()
+            "combinations": SubjectCombinationRepository.get_all(),
+            "active_season": season_data
         }
 
 class AdmissionService:
     @staticmethod
     def _ensure_editable(profile):
+        from .models import AdmissionSeason
+        active_season = AdmissionSeason.objects.filter(is_active=True, status='OPEN').first()
+        if not active_season:
+            raise ValueError("Hiện tại không có đợt tuyển sinh nào đang mở đăng ký.")
+            
         if Payment.objects.filter(user=profile.user, status='SUCCESS').exists():
             raise ValueError("Bạn đã thanh toán lệ phí, không thể chỉnh sửa nguyện vọng.")
 
