@@ -312,22 +312,22 @@ export default function Catalogs() {
                 {activeTab === 'majors' ? (
                   <>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Mã ngành</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Mã ngành <span className="text-red-500">*</span></label>
                       <input type="text" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} required disabled={!!editingItem} />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tên ngành</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tên ngành <span className="text-red-500">*</span></label>
                       <input type="text" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Chỉ tiêu xét tuyển</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Chỉ tiêu xét tuyển <span className="text-red-500">*</span></label>
                       <input type="number" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.quota || ''} onChange={e => setFormData({...formData, quota: e.target.value})} required />
                     </div>
                   </>
                 ) : activeTab === 'combinations' ? (
                   <>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Mã tổ hợp (VD: A00)</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Mã tổ hợp (VD: A00) <span className="text-red-500">*</span></label>
                       <input type="text" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} required />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
@@ -345,14 +345,14 @@ export default function Catalogs() {
                 ) : (
                   <>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Ngành</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Ngành <span className="text-red-500">*</span></label>
                       <select className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.major || ''} onChange={e => setFormData({...formData, major: e.target.value})} required>
                         <option value="">Chọn ngành...</option>
                         {majors.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Phương thức</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Phương thức <span className="text-red-500">*</span></label>
                       <select className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.method || ''} onChange={e => setFormData({...formData, method: e.target.value})} required>
                         <option value="">Chọn phương thức...</option>
                         {methods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -360,11 +360,11 @@ export default function Catalogs() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Năm</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Năm <span className="text-red-500">*</span></label>
                         <input type="number" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.year || ''} onChange={e => setFormData({...formData, year: e.target.value})} required />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Điểm chuẩn</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Điểm chuẩn <span className="text-red-500">*</span></label>
                         <input type="number" step="0.01" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.score || ''} onChange={e => setFormData({...formData, score: e.target.value})} required />
                       </div>
                     </div>
