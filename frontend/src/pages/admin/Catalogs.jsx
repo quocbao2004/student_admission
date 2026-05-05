@@ -77,6 +77,8 @@ export default function Catalogs() {
       url = editingItem ? `${API_BASE}/admissions/admin/combinations/${editingItem.id}/` : `${API_BASE}/admissions/admin/combinations/`;
     } else if (activeTab === 'benchmarks') {
       url = editingItem ? `${API_BASE}/admissions/admin/benchmarks/${editingItem.id}/` : `${API_BASE}/admissions/admin/benchmarks/`;
+    } else if (activeTab === 'methods') {
+      url = editingItem ? `${API_BASE}/admissions/admin/methods/${editingItem.id}/` : `${API_BASE}/admissions/admin/methods/`;
     }
     
     try {
@@ -93,6 +95,8 @@ export default function Catalogs() {
           setCombinations(prev => editingItem ? prev.map(c => c.id === data.id ? data : c) : [...prev, data]);
         } else if (activeTab === 'benchmarks') {
           setBenchmarks(prev => editingItem ? prev.map(b => b.id === data.id ? data : b) : [...prev, data]);
+        } else if (activeTab === 'methods') {
+          setMethods(prev => editingItem ? prev.map(m => m.id === data.id ? data : m) : [...prev, data]);
         }
         setIsModalOpen(false);
         setFormData({});
@@ -113,6 +117,7 @@ export default function Catalogs() {
     if (activeTab === 'majors') url = `${API_BASE}/admissions/admin/majors/${id}/`;
     else if (activeTab === 'combinations') url = `${API_BASE}/admissions/admin/combinations/${id}/`;
     else if (activeTab === 'benchmarks') url = `${API_BASE}/admissions/admin/benchmarks/${id}/`;
+    else if (activeTab === 'methods') url = `${API_BASE}/admissions/admin/methods/${id}/`;
     
     try {
       const res = await authFetch(url, { method: 'DELETE' });
@@ -120,6 +125,7 @@ export default function Catalogs() {
         if (activeTab === 'majors') setMajors(prev => prev.filter(m => m.id !== id));
         else if (activeTab === 'combinations') setCombinations(prev => prev.filter(c => c.id !== id));
         else if (activeTab === 'benchmarks') setBenchmarks(prev => prev.filter(b => b.id !== id));
+        else if (activeTab === 'methods') setMethods(prev => prev.filter(m => m.id !== id));
       }
     } catch (err) { console.error(err); }
   };
@@ -132,6 +138,7 @@ export default function Catalogs() {
 
   const filteredMajors = majors.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.code.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredCombs = combinations.filter(c => c.code.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredMethods = methods.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredBenchmarks = benchmarks
     .filter(b => benchmarkYear ? b.year === benchmarkYear : true)
     .filter(b => b.major_name?.toLowerCase().includes(searchTerm.toLowerCase()) || b.year.toString().includes(searchTerm));
@@ -149,7 +156,7 @@ export default function Catalogs() {
           onClick={() => openModal()}
         >
           <Plus size={16} /> 
-          {activeTab === 'majors' ? 'Thêm ngành mới' : activeTab === 'combinations' ? 'Thêm tổ hợp mới' : 'Thêm điểm chuẩn'}
+          {activeTab === 'majors' ? 'Thêm ngành mới' : activeTab === 'combinations' ? 'Thêm tổ hợp mới' : activeTab === 'benchmarks' ? 'Thêm điểm chuẩn' : 'Thêm phương thức'}
         </button>
       </div>
 
@@ -172,6 +179,12 @@ export default function Catalogs() {
           onClick={() => setActiveTab('benchmarks')}
         >
           <Target size={16} /> Điểm chuẩn
+        </button>
+        <button 
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'methods' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setActiveTab('methods')}
+        >
+          <Layers size={16} /> Phương thức
         </button>
       </div>
 
@@ -267,6 +280,28 @@ export default function Catalogs() {
                 ))}
               </tbody>
             </table>
+          ) : activeTab === 'methods' ? (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-6 py-4 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Tên phương thức</th>
+                  <th className="px-6 py-4 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Mô tả</th>
+                  <th className="px-6 py-4 font-semibold text-slate-500 text-[11px] uppercase tracking-wider text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredMethods.map(m => (
+                  <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-slate-900">{m.name}</td>
+                    <td className="px-6 py-4 text-slate-600 max-w-md truncate" title={m.description}>{m.description || '-'}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors" onClick={() => openModal(m)}><Edit2 size={16} /></button>
+                      <button className="p-2 text-slate-400 hover:text-red-600 transition-colors" onClick={() => handleDelete(m.id)}><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
@@ -340,6 +375,17 @@ export default function Catalogs() {
                       <div>
                         <input type="text" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" placeholder="Môn 3" value={formData.subject3 || ''} onChange={e => setFormData({...formData, subject3: e.target.value})} required />
                       </div>
+                    </div>
+                  </>
+                ) : activeTab === 'methods' ? (
+                  <>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tên phương thức <span className="text-red-500">*</span></label>
+                      <input type="text" className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Mô tả</label>
+                      <textarea className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 min-h-[100px]" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                     </div>
                   </>
                 ) : (

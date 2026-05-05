@@ -498,6 +498,38 @@ class AdminMajorCRUDView(APIView):
         major.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+class AdminMethodCRUDView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        methods = AdmissionMethod.objects.all().order_by('name')
+        serializer = AdmissionMethodSerializer(methods, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = AdmissionMethodSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        method = AdmissionMethod.objects.filter(id=pk).first()
+        if not method:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = AdmissionMethodSerializer(method, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        method = AdmissionMethod.objects.filter(id=pk).first()
+        if not method:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        method.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 class AdminCombinationCRUDView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
