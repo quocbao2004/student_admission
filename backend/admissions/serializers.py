@@ -128,23 +128,40 @@ class ApplicationResponseDTO(serializers.ModelSerializer):
     def get_calculated_score(self, obj):
         from .models import Score, ScoreFormula
         formula_obj = ScoreFormula.objects.filter(method=obj.method).first()
-        if not formula_obj or not obj.combination:
+        if not formula_obj:
             return None
+            
         profile_scores = Score.objects.filter(profile=obj.profile)
-        comb = obj.combination
-        s1 = profile_scores.filter(subject=comb.subject1).first()
-        s2 = profile_scores.filter(subject=comb.subject2).first()
-        s3 = profile_scores.filter(subject=comb.subject3).first()
-        context = {
-            's1': s1.score if s1 else 0,
-            's2': s2.score if s2 else 0,
-            's3': s3.score if s3 else 0,
-            'bonus': (
-                0.75 if obj.profile.priority_area == 'KV1'
-                else 0.5 if 'KV2' in (obj.profile.priority_area or '')
-                else 0
-            ),
-        }
+        context = {}
+        
+        if obj.combination:
+            comb = obj.combination
+            s1 = profile_scores.filter(subject=comb.subject1).first()
+            s2 = profile_scores.filter(subject=comb.subject2).first()
+            s3 = profile_scores.filter(subject=comb.subject3).first()
+            context['s1'] = s1.score if s1 else 0
+            context['s2'] = s2.score if s2 else 0
+            context['s3'] = s3.score if s3 else 0
+        else:
+            context['s1'] = 0
+            context['s2'] = 0
+            context['s3'] = 0
+            # Inject all scores as variables to support custom formulas
+            for ps in profile_scores:
+                var_name = ps.subject.replace(' ', '').replace('-', '')
+                context[var_name] = ps.score
+
+        area = obj.profile.priority_area or ''
+        bonus_area = 0.75 if area == 'KV1' else 0.5 if area == 'KV2-NT' else 0.25 if area == 'KV2' else 0
+        
+        target = obj.profile.priority_object or ''
+        bonus_target = 0
+        if any(x in target for x in ['1', '2', '3', '4']):
+            bonus_target = 2.0
+        elif any(x in target for x in ['5', '6', '7']):
+            bonus_target = 1.0
+            
+        context['bonus'] = bonus_area + bonus_target
         try:
             expr = formula_obj.formula.replace(' ', '')
             context['avg'] = (context['s1'] + context['s2'] + context['s3']) / 3
