@@ -74,7 +74,7 @@ class MajorRepository:
 class MajorBenchmarkRepository:
     @staticmethod
     def get_by_major(major_id):
-        return MajorBenchmark.objects.filter(major_id=major_id).order_by('-year', 'method__name')
+        return MajorBenchmark.objects.filter(major_id=major_id, is_published=True).order_by('-year', 'method__name')
 
 class AdmissionMethodRepository:
     @staticmethod

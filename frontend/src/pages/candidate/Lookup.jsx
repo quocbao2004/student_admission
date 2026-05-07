@@ -149,26 +149,6 @@ export default function Lookup() {
         <p className="text-slate-500 text-sm mt-1">Dữ liệu tham khảo từ các kỳ tuyển sinh trước.</p>
       </div>
 
-      {/* Hero Section: Personal Score Predictor */}
-      <div className="border border-slate-200 rounded-lg p-6 mb-8 bg-white flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900 mb-1">Dự đoán Cơ hội Trúng tuyển</h3>
-          <p className="text-slate-500 text-sm">
-            Nhập điểm số dự kiến của bạn (thang 30) để lọc các ngành phù hợp.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-slate-700">Điểm của bạn</label>
-          <input 
-            type="number" 
-            step="0.1"
-            placeholder="VD: 25.5"
-            className="w-24 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md text-sm text-center focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all"
-            value={personalScore}
-            onChange={(e) => setPersonalScore(e.target.value)}
-          />
-        </div>
-      </div>
 
       {/* Smart Filters */}
       <div className="flex flex-wrap gap-3 mb-8">

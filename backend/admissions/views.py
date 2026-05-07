@@ -1,10 +1,18 @@
+# pyrefly: ignore [missing-import]
 from rest_framework import status
+# pyrefly: ignore [missing-import]
 from rest_framework.response import Response
+# pyrefly: ignore [missing-import]
 from django.http import JsonResponse, HttpResponseRedirect, HttpResponse
+# pyrefly: ignore [missing-import]
 from rest_framework.views import APIView
+# pyrefly: ignore [missing-import]
 from rest_framework.permissions import IsAuthenticated, BasePermission
+# pyrefly: ignore [missing-import]
 from rest_framework.parsers import MultiPartParser, FormParser
+# pyrefly: ignore [missing-import]
 from rest_framework import serializers
+# pyrefly: ignore [missing-import]
 import csv
 
 from .models import (
@@ -38,7 +46,9 @@ from .serializers import (
     AdmissionSeasonSerializer,
 )
 from .services import ProfileService, DocumentService, CatalogService, AdmissionService, StatisticService, PaymentService
-from django.views.decorators.csrf import csrf_exempt
+# pyrefly: ignore [missing-import]
+from django.views.decorators.csrf import csrf_exempt    
+# pyrefly: ignore [missing-import]
 from django.utils.decorators import method_decorator
 
 
@@ -668,7 +678,8 @@ class AdminMajorWorkflowStatusView(APIView):
 
     def get(self, request, major_id):
         from datetime import datetime
-        from django.db.models import Q
+        # pyrefly: ignore [missing-import]
+        from django.db.models import Q  
 
         major = Major.objects.filter(id=major_id).first()
         if not major:
@@ -763,7 +774,7 @@ class CandidateAdmissionLetterDataView(APIView):
 
     def get(self, request):
         passed_result = AdmissionResult.objects.filter(
-            application__user=request.user,
+            application__profile__user=request.user,
             is_passed=True,
             published=True
         ).select_related('application__major', 'application__method').first()
@@ -793,6 +804,7 @@ class PublicMajorsView(APIView):
     permission_classes = []
 
     def get(self, request):
+        # pyrefly: ignore [missing-import]
         from django.db.models import Prefetch
         majors = Major.objects.prefetch_related(
             Prefetch('application_set', queryset=Application.objects.select_related('combination').filter(combination__isnull=False))
@@ -830,7 +842,7 @@ class PublicBenchmarksView(APIView):
         benchmarks = (
             MajorBenchmark.objects
             .select_related('major', 'method')
-            .all()
+            .filter(is_published=True)
             .order_by('-year', 'major__code')
         )
         result = []

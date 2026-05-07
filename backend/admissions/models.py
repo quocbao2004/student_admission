@@ -1,4 +1,5 @@
 import uuid
+# pyrefly: ignore [missing-import]
 from django.db import models
 from accounts.models import User, Profile
 
@@ -122,6 +123,7 @@ class AdmissionResult(models.Model):
     total_score = models.FloatField(null=True, blank=True)
     is_passed = models.BooleanField(null=True, blank=True)
     ranked_position = models.IntegerField(null=True, blank=True)
+    published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -155,6 +157,7 @@ class MajorBenchmark(models.Model):
     method = models.ForeignKey(AdmissionMethod, on_delete=models.CASCADE, related_name='benchmarks')
     year = models.IntegerField()
     score = models.FloatField()
+    is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
