@@ -1,8 +1,8 @@
 // Cấu hình môi trường cho Frontend
-export const API_BASE = 'http://localhost:8000/api';
-export const BACKEND_URL = 'http://localhost:8000/api';
-// export const API_BASE = 'https://student-admission-m0ct.onrender.com/api';
-// export const BACKEND_URL = 'https://student-admission-m0ct.onrender.com';
+// export const API_BASE = 'http://localhost:8000/api';
+// export const BACKEND_URL = 'http://localhost:8000/api';
+export const API_BASE = 'https://student-admission-m0ct.onrender.com/api';
+export const BACKEND_URL = 'https://student-admission-m0ct.onrender.com';
 
 
 // Các hằng số định danh hệ thống (Global Constants)
