@@ -122,7 +122,7 @@ class ApplicationResponseDTO(serializers.ModelSerializer):
             "total_score": result.total_score,
             "is_passed": result.is_passed,
             "ranked_position": result.ranked_position,
-            "published": obj.profile.status == 'RESULT_PUBLISHED'
+            "published": result.published
         }
 
     def get_calculated_score(self, obj):
